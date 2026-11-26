@@ -1,0 +1,6 @@
+{
+  "name": "@pocket-operator/catalog-service",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js"
+}

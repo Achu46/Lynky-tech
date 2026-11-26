@@ -1,0 +1,96 @@
+{
+  "restaurants": [
+    {
+      "id": "r1",
+      "name": "Green Leaf Kitchen",
+      "latitude": 12.9716,
+      "longitude": 77.5946
+    },
+    {
+      "id": "r2",
+      "name": "Spice Route Bistro",
+      "latitude": 12.9784,
+      "longitude": 77.6408
+    },
+    {
+      "id": "r3",
+      "name": "Metro Tandoor",
+      "latitude": 12.9352,
+      "longitude": 77.6245
+    }
+  ],
+  "dishes": [
+    {
+      "id": "m1",
+      "restaurant_id": "r1",
+      "name": "Paneer Rice Bowl",
+      "is_vegetarian": true,
+      "price": 180,
+      "is_available": true,
+      "description": "Grilled paneer over jeera rice with mint chutney."
+    },
+    {
+      "id": "m2",
+      "restaurant_id": "r2",
+      "name": "Chicken Biryani Box",
+      "is_vegetarian": false,
+      "price": 170,
+      "is_available": true,
+      "description": "Aromatic spiced chicken biryani with raita."
+    },
+    {
+      "id": "m3",
+      "restaurant_id": "r3",
+      "name": "Masala Dosa Combo",
+      "is_vegetarian": true,
+      "price": 140,
+      "is_available": false,
+      "description": "Crispy masala dosa with sambar and coconut chutney."
+    },
+    {
+      "id": "m4",
+      "restaurant_id": "r1",
+      "name": "Veg Lunch Box",
+      "is_vegetarian": true,
+      "price": 160,
+      "is_available": true,
+      "description": "Homestyle dal, sabzi, 2 rotis, and steamed rice."
+    },
+    {
+      "id": "m5",
+      "restaurant_id": "r2",
+      "name": "Chole Bhature Plate",
+      "is_vegetarian": true,
+      "price": 180,
+      "is_available": true,
+      "description": "Spiced chickpea curry with fluffy bhature."
+    },
+    {
+      "id": "m6",
+      "restaurant_id": "r3",
+      "name": "Egg Curry Meal",
+      "is_vegetarian": false,
+      "price": 150,
+      "is_available": true,
+      "description": "Two boiled eggs in rich onion-tomato gravy with rice."
+    },
+    {
+      "id": "m7",
+      "restaurant_id": "r2",
+      "name": "Butter Chicken Thali",
+      "is_vegetarian": false,
+      "price": 250,
+      "is_available": true,
+      "description": "Creamy butter chicken with naan and pulao."
+    },
+    {
+      "id": "m8",
+      "restaurant_id": "r1",
+      "name": "Rajma Chawal Bowl",
+      "is_vegetarian": true,
+      "price": 200,
+      "is_available": true,
+      "description": "Slow-cooked kidney beans curry over basmati rice."
+    }
+  ]
+}
