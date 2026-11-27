@@ -29,6 +29,7 @@ import {
   getCachedRestaurantCoords,
   getOrCreateSessionId,
 } from '../services/storage';
+import { formatTimeAmPm } from '../utils/time';
 
 type HistoryTab = 'confirmed' | 'cancelled';
 
@@ -184,7 +185,7 @@ export const HistoryScreen: React.FC = () => {
           </Text>
         </View>
         <Text style={[styles.time, { color: theme.cardMutedText }]}>
-          {new Date(item.created_at).toLocaleDateString()}
+          {`${new Date(item.created_at).toLocaleDateString()} • ${formatTimeAmPm(item.created_at)}`}
         </Text>
       </View>
 
@@ -254,7 +255,7 @@ export const HistoryScreen: React.FC = () => {
             </Text>
           </View>
           <Text style={[styles.time, { color: theme.cardMutedText }]}>
-            {new Date(timestamp).toLocaleDateString()}
+            {`${new Date(timestamp).toLocaleDateString()} • ${formatTimeAmPm(timestamp)}`}
           </Text>
         </View>
 
@@ -284,7 +285,8 @@ export const HistoryScreen: React.FC = () => {
         <View style={styles.metaRow}>
           <Feather name="x-circle" size={14} color={theme.error} />
           <Text style={[styles.statusLine, { color: theme.cardMutedText }]}>
-            Cancelled on {new Date(timestamp).toLocaleString()}
+            Cancelled on {new Date(timestamp).toLocaleDateString()} at{' '}
+            {formatTimeAmPm(timestamp)}
           </Text>
         </View>
       </View>

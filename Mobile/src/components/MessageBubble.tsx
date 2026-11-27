@@ -4,6 +4,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import Feather from 'react-native-vector-icons/Feather';
 import type { ChatMessage } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
+import { formatTimeAmPm } from '../utils/time';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -41,6 +42,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     !isFailed &&
     message.text.toLowerCase().startsWith('sandbox order saved');
   const displayText = isUser ? message.text : formatDisplayText(message.text);
+  const assistantTime = !isUser ? formatTimeAmPm(message.createdAt) : '';
 
   const handleCopy = () => {
     Clipboard.setString(displayText);
@@ -117,6 +119,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           ]}>
           {displayText}
         </Text>
+        {assistantTime ? (
+          <Text
+            style={[
+              styles.timeText,
+              {
+                color: isFailed
+                  ? theme.bannerErrorText
+                  : isPositiveOrder
+                    ? theme.bannerSuccessText
+                    : theme.textSecondary,
+              },
+            ]}>
+            {assistantTime}
+          </Text>
+        ) : null}
         {message.retryable &&
         message.retryRunId &&
         message.retryText &&
@@ -188,6 +205,12 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  timeText: {
+    marginTop: 5,
+    fontSize: 11,
+    textAlign: 'right',
+    opacity: 0.78,
   },
   retryBtn: {
     marginTop: 10,

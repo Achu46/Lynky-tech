@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Linking } from 'react-native';
 import { ApiError, confirmProposal } from '../src/api/client';
 import { formatDirectionsStatus, openDirections } from '../src/services/maps';
+import { formatTimeAmPm } from '../src/utils/time';
 
 describe('Maps handoff & API client', () => {
   beforeEach(() => {
@@ -111,5 +112,13 @@ describe('Maps handoff & API client', () => {
       expect(err).toBeInstanceOf(ApiError);
       expect((err as ApiError).isNetworkOrTimeout).toBe(true);
     }
+  });
+
+  it('formats timestamps strictly as HH:MM AM/PM', () => {
+    expect(formatTimeAmPm(new Date(2026, 10, 27, 0, 5))).toBe('12:05 AM');
+    expect(formatTimeAmPm(new Date(2026, 10, 27, 9, 7))).toBe('09:07 AM');
+    expect(formatTimeAmPm(new Date(2026, 10, 27, 12, 0))).toBe('12:00 PM');
+    expect(formatTimeAmPm(new Date(2026, 10, 27, 18, 39))).toBe('06:39 PM');
+    expect(formatTimeAmPm(null)).toBe('');
   });
 });
