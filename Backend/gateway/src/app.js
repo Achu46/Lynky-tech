@@ -79,6 +79,16 @@ export function createGatewayApp({
   app.get('/api/runs/:id', forward(getUrl.assistant, (req) => `/runs/${encodeURIComponent(req.params.id)}`));
 
   // Order routes
+  app.get(
+    '/api/proposals',
+    forward(getUrl.order, (req) => {
+      const qs =
+        typeof req.query.status === 'string' && req.query.status
+          ? `?status=${encodeURIComponent(req.query.status)}`
+          : '';
+      return `/proposals${qs}`;
+    })
+  );
   app.get('/api/proposals/:id', forward(getUrl.order, (req) => `/proposals/${encodeURIComponent(req.params.id)}`));
   app.post(
     '/api/proposals/:id/confirm',

@@ -432,6 +432,32 @@ export function createOrderApp({
   );
 
   app.get(
+    '/proposals',
+    asyncHandler(async (req, res) => {
+      const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+      const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'stale'];
+
+      if (status && !allowedStatuses.includes(status)) {
+        res.status(400).json({ error: 'Invalid proposal status filter' });
+        return;
+      }
+
+      const query = status
+        ? {
+            text: 'SELECT * FROM order_proposals WHERE status = $1 ORDER BY COALESCE(resolved_at, created_at) DESC',
+            values: [status]
+          }
+        : {
+            text: 'SELECT * FROM order_proposals ORDER BY COALESCE(resolved_at, created_at) DESC',
+            values: []
+          };
+
+      const { rows } = await pool.query(query.text, query.values);
+      res.json({ proposals: rows.map(formatProposal) });
+    })
+  );
+
+  app.get(
     '/orders',
     asyncHandler(async (_req, res) => {
       const { rows } = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');

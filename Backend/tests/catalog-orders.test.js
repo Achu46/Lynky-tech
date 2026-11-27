@@ -125,6 +125,19 @@ describe('Catalog & Order Service (Tests 1-6)', () => {
 
     const orders = await db.pool.query('SELECT * FROM orders');
     expect(orders.rowCount).toBe(0);
+
+    const cancelledList = await request(orderApp)
+      .get('/proposals?status=cancelled')
+      .set('x-internal-key', internalKey);
+    expect(cancelledList.status).toBe(200);
+    expect(cancelledList.body.proposals).toHaveLength(1);
+    expect(cancelledList.body.proposals[0].id).toBe(propRes.body.id);
+    expect(cancelledList.body.proposals[0].status).toBe('cancelled');
+
+    const badFilter = await request(orderApp)
+      .get('/proposals?status=bogus')
+      .set('x-internal-key', internalKey);
+    expect(badFilter.status).toBe(400);
   });
 
   // Test 3: Stale proposal handling
