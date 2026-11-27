@@ -156,14 +156,15 @@ export async function runAgentLoop({
     // Non-fatal; search_menu tool still works independently
   }
 
-  const priorRuns = await pool.query(
+  const priorRunsRes = await pool.query(
     `SELECT user_message, reply_text
      FROM assistant_runs
      WHERE session_id = $1 AND id <> $2 AND status IN ('needs_answer', 'needs_approval', 'done')
-     ORDER BY started_at ASC
+     ORDER BY started_at DESC
      LIMIT 10`,
     [sessionId, runId]
   );
+  const priorRuns = { rows: [...priorRunsRes.rows].reverse() };
 
   try {
     const pendingSessionProp = await pool.query(
@@ -288,16 +289,24 @@ export async function runAgentLoop({
           activity
         };
       }
-      const msg = 'Sorry, the assistant could not respond right now. Please try again.';
-      await finishRun(pool, runId, 'failed', msg, 'LLM_ERROR');
-      return {
-        run_id: runId,
-        status: 'failed',
-        retryable: true,
-        error_code: 'LLM_ERROR',
-        assistant_message: msg,
-        activity
-      };
+      if (typeof llmClient.generateFallbackTurn === 'function') {
+        const fallbackTurn = await llmClient.generateFallbackTurn({ messages }).catch(() => null);
+        if (fallbackTurn && (fallbackTurn.text || fallbackTurn.toolCalls?.length)) {
+          llmTurn = fallbackTurn;
+        }
+      }
+      if (!llmTurn) {
+        const msg = 'Sorry, the assistant could not respond right now. Please try again.';
+        await finishRun(pool, runId, 'failed', msg, 'LLM_ERROR');
+        return {
+          run_id: runId,
+          status: 'failed',
+          retryable: true,
+          error_code: 'LLM_ERROR',
+          assistant_message: msg,
+          activity
+        };
+      }
     }
 
     const toolCalls = llmTurn?.toolCalls || [];

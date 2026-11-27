@@ -5,7 +5,8 @@ import { serviceFetch } from '@pocket-operator/shared';
 dns.setDefaultResultOrder('ipv4first');
 
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
-const RETRY_DELAYS_MS = [0, 450, 1100];
+const RETRY_DELAYS_MS = [0, 450];
+const PER_ATTEMPT_TIMEOUT_MS = 11000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -118,16 +119,26 @@ function extractVegFromText(text) {
   return null;
 }
 
-async function buildCatalogFallbackTurn({ catalogUrl, messages }) {
+function isMenuBrowseQuery(text) {
+  return /\b(list|menu|dishes|options|items|catalog|available)\b/i.test(text) &&
+    !/\b(order|buy|book|prepare|place|confirm)\b/i.test(text);
+}
+
+export async function buildCatalogFallbackTurn({ catalogUrl, messages }) {
   if (!catalogUrl) {
     return null;
   }
   const userMsgs = messages.filter((m) => m.role === 'user' && typeof m.content === 'string');
   const lastUserMsg = userMsgs[userMsgs.length - 1]?.content || '';
-  const combinedUserText = userMsgs.map((m) => m.content).join(' ');
-  const maxPrice = extractBudgetFromText(lastUserMsg) ?? extractBudgetFromText(combinedUserText);
-  const vegPref = extractVegFromText(lastUserMsg) ?? extractVegFromText(combinedUserText);
-  const wantsOrder = /\b(order|buy|book|prepare|cheapest|get me|place)\b/i.test(combinedUserText);
+  const isBrowsingMenu = isMenuBrowseQuery(lastUserMsg);
+  const scopeText = isBrowsingMenu ? lastUserMsg : userMsgs.map((m) => m.content).join(' ');
+  const maxPrice = isBrowsingMenu
+    ? extractBudgetFromText(lastUserMsg)
+    : extractBudgetFromText(lastUserMsg) ?? extractBudgetFromText(scopeText);
+  const vegPref = isBrowsingMenu
+    ? extractVegFromText(lastUserMsg)
+    : extractVegFromText(lastUserMsg) ?? extractVegFromText(scopeText);
+  const wantsOrder = !isBrowsingMenu && /\b(order|buy|book|prepare|get me|place)\b/i.test(lastUserMsg);
 
   const res = await serviceFetch(catalogUrl, '/dishes/search?include_unavailable=true').catch(
     () => null
@@ -137,6 +148,14 @@ async function buildCatalogFallbackTurn({ catalogUrl, messages }) {
   }
 
   const allDishes = res.data.dishes;
+  if (allDishes.length === 0) {
+    return {
+      text: 'No dishes are currently available in the catalog.',
+      rawParts: null,
+      toolCalls: []
+    };
+  }
+
   const available = allDishes.filter((d) => {
     if (!d.is_available) return false;
     if (maxPrice !== null && d.price > maxPrice) return false;
@@ -167,14 +186,21 @@ async function buildCatalogFallbackTurn({ catalogUrl, messages }) {
 
   if (available.length === 0) {
     const cheapestAll = allDishes.filter((d) => d.is_available);
+    if (cheapestAll.length === 0) {
+      return {
+        text: 'No dishes are currently available in the catalog.',
+        rawParts: null,
+        toolCalls: []
+      };
+    }
     const listText = cheapestAll
-      .map((d) => `- ${d.name} (${d.is_vegetarian ? 'Veg' : 'Non-Veg'}) at ${d.restaurant_name}: Rs ${d.price}`)
+      .map((d) => `* **${d.name}** - ${d.restaurant_name} - ${d.is_vegetarian ? 'Veg' : 'Non-Veg'} - ${d.price} Rs`)
       .join('\n');
     return {
       text:
         maxPrice !== null
-          ? `No available dishes matched Rs ${maxPrice}${vegPref === true ? ' (Veg)' : vegPref === false ? ' (Non-Veg)' : ''}. Available menu items:\n${listText}`
-          : `Here are the available menu items:\n${listText}`,
+          ? `No available dishes matched Rs ${maxPrice}${vegPref === true ? ' (Veg)' : vegPref === false ? ' (Non-Veg)' : ''}. Here are the available dishes:\n\n${listText}`
+          : `Here are the available dishes:\n\n${listText}`,
       rawParts: null,
       toolCalls: []
     };
@@ -182,15 +208,15 @@ async function buildCatalogFallbackTurn({ catalogUrl, messages }) {
 
   const lines = available.map(
     (d) =>
-      `- ${d.name} (${d.is_vegetarian ? 'Veg' : 'Non-Veg'}) from ${d.restaurant_name}: Rs ${d.price}`
+      `* **${d.name}** - ${d.restaurant_name} - ${d.is_vegetarian ? 'Veg' : 'Non-Veg'} - ${d.price} Rs`
   );
   const heading =
     maxPrice !== null
-      ? `Here are the ${available.length} available dishes under Rs ${maxPrice}:`
-      : `Here are the ${available.length} available dishes on the menu:`;
+      ? `Here are the available dishes under Rs ${maxPrice}:`
+      : 'Here are the available dishes:';
 
   return {
-    text: `${heading}\n${lines.join('\n')}\n\nTell me if you would like to prepare an order for the cheapest matching option.`,
+    text: `${heading}\n\n${lines.join('\n')}`,
     rawParts: null,
     toolCalls: []
   };
@@ -210,6 +236,13 @@ export class GeminiLlmClient {
 
   getCatalogUrl() {
     return typeof this.catalogUrl === 'function' ? this.catalogUrl() : this.catalogUrl;
+  }
+
+  async generateFallbackTurn({ messages }) {
+    return buildCatalogFallbackTurn({
+      catalogUrl: this.getCatalogUrl(),
+      messages
+    });
   }
 
   async generateTurn({ systemPrompt, messages, tools, signal }) {
@@ -237,6 +270,9 @@ export class GeminiLlmClient {
         await sleep(RETRY_DELAYS_MS[attempt]);
       }
       const modelToUse = candidateModels[Math.min(attempt, candidateModels.length - 1)];
+      const attemptSignal = signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(PER_ATTEMPT_TIMEOUT_MS)])
+        : AbortSignal.timeout(PER_ATTEMPT_TIMEOUT_MS);
       try {
         response = await this.ai.models.generateContent({
           model: modelToUse,
@@ -244,7 +280,7 @@ export class GeminiLlmClient {
           config: {
             systemInstruction: systemPrompt,
             tools: [{ functionDeclarations }],
-            abortSignal: signal
+            abortSignal: attemptSignal
           }
         });
         lastError = null;

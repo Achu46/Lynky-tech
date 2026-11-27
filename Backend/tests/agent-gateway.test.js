@@ -494,4 +494,23 @@ describe('Assistant Service & Gateway (Test 7 + E2E)', () => {
     expect(namedRes.body.proposal.dish_name).toBe('Veg Rice Bowl');
     expect(namedRes.body.proposal.price).toBe(180);
   });
+
+  it('Catalog fallback lists all available dishes for "Show me the dishes list" without inheriting prior order intent', async () => {
+    const { buildCatalogFallbackTurn } = await import('../services/assistant-service/src/llm.js');
+    const fallback = await buildCatalogFallbackTurn({
+      catalogUrl: catalogServer.url,
+      messages: [
+        { role: 'user', content: 'order cheapest vegetarian meal under 200' },
+        { role: 'assistant', content: 'Prepared Veg Lunch Box.' },
+        { role: 'user', content: 'Show me the dishes list' }
+      ]
+    });
+
+    expect(fallback.toolCalls).toEqual([]);
+    expect(fallback.text).toContain('Here are the available dishes:');
+    expect(fallback.text).toContain('Veg Lunch Box');
+    expect(fallback.text).toContain('Veg Rice Bowl');
+    expect(fallback.text).toContain('Premium Veg Meal');
+    expect(fallback.text).not.toContain('Veg Mini Meal');
+  });
 });
