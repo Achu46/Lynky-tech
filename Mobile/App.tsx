@@ -6,10 +6,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import { SplashScreen } from './src/components/SplashScreen';
 import { AppStateProvider } from './src/context/AppState';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AssistantScreen } from './src/screens/AssistantScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { ActivityScreen } from './src/screens/ActivityScreen';
-import { THEME } from './src/theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -17,61 +17,83 @@ function TabIcon({
   name,
   color,
   focused,
+  tintBg,
 }: {
   name: string;
   color: string;
   focused: boolean;
+  tintBg: string;
 }) {
   return (
-    <View style={[styles.iconWrap, focused ? styles.iconWrapActive : null]}>
+    <View
+      style={[
+        styles.iconWrap,
+        focused ? { backgroundColor: tintBg } : null,
+      ]}>
       <Feather name={name} size={18} color={color} />
     </View>
   );
 }
 
-const renderAssistantIcon = ({
-  color,
-  focused,
-}: {
-  color: string;
-  focused: boolean;
-}) => <TabIcon name="message-circle" color={color} focused={focused} />;
-
-const renderHistoryIcon = ({
-  color,
-  focused,
-}: {
-  color: string;
-  focused: boolean;
-}) => <TabIcon name="shopping-bag" color={color} focused={focused} />;
-
-const renderActivityIcon = ({
-  color,
-  focused,
-}: {
-  color: string;
-  focused: boolean;
-}) => <TabIcon name="activity" color={color} focused={focused} />;
-
-export default function App(): React.JSX.Element {
+function AppContent(): React.JSX.Element {
+  const { isDark, theme } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
   }, []);
 
+  const renderAssistantIcon = useCallback(
+    ({ color, focused }: { color: string; focused: boolean }) => (
+      <TabIcon
+        name="message-circle"
+        color={color}
+        focused={focused}
+        tintBg={theme.accentTint}
+      />
+    ),
+    [theme.accentTint],
+  );
+
+  const renderHistoryIcon = useCallback(
+    ({ color, focused }: { color: string; focused: boolean }) => (
+      <TabIcon
+        name="shopping-bag"
+        color={color}
+        focused={focused}
+        tintBg={theme.accentTint}
+      />
+    ),
+    [theme.accentTint],
+  );
+
+  const renderActivityIcon = useCallback(
+    ({ color, focused }: { color: string; focused: boolean }) => (
+      <TabIcon
+        name="activity"
+        color={color}
+        focused={focused}
+        tintBg={theme.accentTint}
+      />
+    ),
+    [theme.accentTint],
+  );
+
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.bgDeep} />
+    <>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bgDeep}
+      />
       <AppStateProvider>
-        <View style={styles.root}>
+        <View style={[styles.root, { backgroundColor: theme.bgDeep }]}>
           <NavigationContainer>
             <Tab.Navigator
               screenOptions={{
                 headerShown: false,
                 tabBarHideOnKeyboard: true,
-                sceneStyle: { backgroundColor: THEME.bgDeep },
-                tabBarActiveTintColor: THEME.accent,
-                tabBarInactiveTintColor: THEME.textMuted,
+                sceneStyle: { backgroundColor: theme.bgDeep },
+                tabBarActiveTintColor: theme.tabBarActiveTint,
+                tabBarInactiveTintColor: theme.tabBarInactiveTint,
                 tabBarLabelStyle: {
                   fontSize: 11,
                   fontWeight: '600',
@@ -84,10 +106,10 @@ export default function App(): React.JSX.Element {
                   right: 16,
                   height: 64,
                   borderRadius: 32,
-                  backgroundColor: THEME.tabBarBg,
+                  backgroundColor: theme.tabBarBg,
                   borderTopWidth: 1,
                   borderWidth: 1,
-                  borderColor: THEME.tabBarBorder,
+                  borderColor: theme.tabBarBorder,
                   paddingTop: 6,
                   elevation: 12,
                 },
@@ -112,6 +134,16 @@ export default function App(): React.JSX.Element {
           {showSplash ? <SplashScreen onFinish={handleSplashFinish} /> : null}
         </View>
       </AppStateProvider>
+    </>
+  );
+}
+
+export default function App(): React.JSX.Element {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -119,7 +151,6 @@ export default function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: THEME.bgDeep,
   },
   iconWrap: {
     width: 34,
@@ -127,8 +158,5 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconWrapActive: {
-    backgroundColor: THEME.accentTint,
   },
 });

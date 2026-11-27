@@ -97,11 +97,28 @@ async function requestJson<T>(
     const isAbort = err?.name === 'AbortError';
     throw new ApiError({
       message: isAbort
-        ? 'Request timed out. Please retry.'
-        : 'Could not reach the server. Retry',
+        ? 'The request took too long. Please tap Retry.'
+        : 'You appear to be offline. Check your internet connection and tap Retry.',
       code: isAbort ? 'TIMEOUT' : 'NETWORK_ERROR',
       isNetworkOrTimeout: true,
     });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function checkConnectivity(): Promise<boolean> {
+  if (typeof fetch !== 'function') {
+    return true;
+  }
+  const base = BACKEND_URL.replace(/\/$/, '');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3500);
+  try {
+    const res = await fetch(`${base}/health`, { signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timer);
   }
@@ -150,6 +167,13 @@ export function cancelProposal(id: string): Promise<Proposal> {
 export async function getOrders(): Promise<Order[]> {
   const res = await requestJson<{ orders: Order[] }>('/api/orders');
   return res.orders ?? [];
+}
+
+export async function getCancelledOrders(): Promise<Proposal[]> {
+  const res = await requestJson<{ proposals: Proposal[] }>(
+    '/api/proposals?status=cancelled',
+  );
+  return res.proposals ?? [];
 }
 
 export async function getLastOrder(): Promise<Order> {

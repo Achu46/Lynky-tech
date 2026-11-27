@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import type { BannerInfo } from '../context/AppState';
-import { THEME } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../theme';
 
 interface StatusBannerProps {
   banner: BannerInfo;
@@ -11,36 +12,38 @@ interface StatusBannerProps {
   onDismiss?: () => void;
 }
 
-const PALETTE = {
-  info: {
-    bg: 'rgba(154, 230, 27, 0.12)',
-    border: 'rgba(154, 230, 27, 0.35)',
-    text: '#E6F5CC',
-    icon: THEME.accent,
-    iconName: 'info',
-  },
-  success: {
-    bg: THEME.successBg,
-    border: 'rgba(34, 197, 94, 0.45)',
-    text: '#DCFCE7',
-    icon: THEME.success,
-    iconName: 'check-circle',
-  },
-  warning: {
-    bg: THEME.warningBg,
-    border: 'rgba(245, 158, 11, 0.45)',
-    text: '#FEF3C7',
-    icon: THEME.warning,
-    iconName: 'alert-triangle',
-  },
-  error: {
-    bg: THEME.errorBg,
-    border: 'rgba(239, 68, 68, 0.5)',
-    text: '#FEE2E2',
-    icon: THEME.error,
-    iconName: 'alert-circle',
-  },
-};
+function getBannerPalette(theme: AppTheme) {
+  return {
+    info: {
+      bg: theme.successBg,
+      border: theme.success,
+      text: theme.bannerSuccessText,
+      icon: theme.success,
+      iconName: 'info',
+    },
+    success: {
+      bg: theme.successBg,
+      border: theme.success,
+      text: theme.bannerSuccessText,
+      icon: theme.success,
+      iconName: 'check-circle',
+    },
+    warning: {
+      bg: theme.errorBg,
+      border: theme.error,
+      text: theme.bannerErrorText,
+      icon: theme.error,
+      iconName: 'alert-triangle',
+    },
+    error: {
+      bg: theme.errorBg,
+      border: theme.error,
+      text: theme.bannerErrorText,
+      icon: theme.error,
+      iconName: 'alert-circle',
+    },
+  };
+}
 
 export const StatusBanner: React.FC<StatusBannerProps> = ({
   banner,
@@ -48,7 +51,10 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
   onAction,
   onDismiss,
 }) => {
-  const palette = PALETTE[banner.kind];
+  const { theme } = useTheme();
+  const palette = getBannerPalette(theme)[banner.kind];
+  const isError = banner.kind === 'error' || banner.kind === 'warning';
+
   return (
     <View
       style={[
@@ -63,22 +69,33 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
           style={styles.icon}
         />
         <Text style={[styles.text, { color: palette.text }]}>{banner.text}</Text>
+        {onDismiss ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss notification"
+            hitSlop={8}
+            onPress={onDismiss}
+            style={styles.dismissIconBtn}>
+            <Feather name="x" size={17} color={palette.text} />
+          </TouchableOpacity>
+        ) : null}
       </View>
-      {actionLabel || onDismiss ? (
+      {actionLabel && onAction ? (
         <View style={styles.actions}>
-          {actionLabel && onAction ? (
-            <TouchableOpacity onPress={onAction} style={styles.actionBtn}>
-              <Text style={styles.actionText}>{actionLabel}</Text>
-            </TouchableOpacity>
-          ) : null}
-          {onDismiss ? (
-            <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
-              <Feather name="x" size={14} color={palette.text} />
-              <Text style={[styles.dismissText, { color: palette.text }]}>
-                Dismiss
-              </Text>
-            </TouchableOpacity>
-          ) : null}
+          <TouchableOpacity
+            onPress={onAction}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: isError ? theme.error : theme.accent },
+            ]}>
+            <Text
+              style={[
+                styles.actionText,
+                { color: isError ? '#FFFFFF' : theme.accentInk },
+              ]}>
+              {actionLabel}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : null}
     </View>
@@ -89,16 +106,18 @@ const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
     borderRadius: 16,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     marginHorizontal: 14,
     marginTop: 8,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
   },
   icon: {
+    alignSelf: 'flex-start',
     marginTop: 2,
   },
   text: {
@@ -107,34 +126,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 20,
   },
+  dismissIconBtn: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     marginLeft: 28,
-    gap: 12,
   },
   actionBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: THEME.accent,
   },
   actionText: {
     fontSize: 13,
     fontWeight: '700',
-    color: THEME.accentInk,
-  },
-  dismissBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  dismissText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
 });
-

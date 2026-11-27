@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
-import { THEME } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const LOGO_SOURCE = require('../assets/logo.png');
 
@@ -12,6 +12,7 @@ interface Props {
  * Full-screen animated brand splash overlay rendered over the root app shell.
  */
 export const SplashScreen: React.FC<Props> = ({ onFinish }) => {
+  const { theme } = useTheme();
   const containerOpacity = useRef(new Animated.Value(1)).current;
   const containerScale = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -118,18 +119,27 @@ export const SplashScreen: React.FC<Props> = ({ onFinish }) => {
       style={[
         styles.overlay,
         {
+          backgroundColor: theme.bgDeep,
           opacity: containerOpacity,
           transform: [{ scale: containerScale }],
         },
       ]}>
-      <View pointerEvents="none" style={styles.ambientGlowTop} />
-      <View pointerEvents="none" style={styles.ambientGlowBottom} />
+      <View
+        pointerEvents="none"
+        style={[styles.ambientGlowTop, { backgroundColor: theme.bgGlow }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[styles.ambientGlowBottom, { backgroundColor: theme.bgGlow }]}
+      />
 
       <View style={styles.centerStage}>
         <Animated.View
           style={[
             styles.pulseRing,
             {
+              borderColor: theme.accent,
+              backgroundColor: theme.accentTint,
               opacity: ringOpacity,
               transform: [{ scale: ringScale }],
             },
@@ -139,6 +149,8 @@ export const SplashScreen: React.FC<Props> = ({ onFinish }) => {
           style={[
             styles.logoBadge,
             {
+              borderColor: theme.accent,
+              shadowColor: theme.accent,
               opacity: logoOpacity,
               transform: [{ scale: logoScale }],
             },
@@ -158,8 +170,10 @@ export const SplashScreen: React.FC<Props> = ({ onFinish }) => {
               transform: [{ translateY: textTranslateY }],
             },
           ]}>
-          <Text style={styles.brandTitle}>Pocket Operator</Text>
-          <Text style={styles.brandSubtitle}>
+          <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
+            Pocket Operator
+          </Text>
+          <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>
             Sandbox Food Pickup Assistant
           </Text>
         </Animated.View>
@@ -171,7 +185,6 @@ export const SplashScreen: React.FC<Props> = ({ onFinish }) => {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: THEME.bgDeep,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
@@ -183,7 +196,6 @@ const styles = StyleSheet.create({
     width: 360,
     height: 360,
     borderRadius: 180,
-    backgroundColor: THEME.bgGlow,
     opacity: 0.78,
   },
   ambientGlowBottom: {
@@ -192,7 +204,6 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: THEME.bgGlow,
     opacity: 0.45,
   },
   centerStage: {
@@ -206,8 +217,6 @@ const styles = StyleSheet.create({
     height: 152,
     borderRadius: 76,
     borderWidth: 2,
-    borderColor: THEME.accent,
-    backgroundColor: THEME.accentTint,
   },
   logoBadge: {
     width: 128,
@@ -218,8 +227,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 12,
     borderWidth: 2,
-    borderColor: THEME.accent,
-    shadowColor: THEME.accent,
     shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 14,
@@ -235,13 +242,11 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: THEME.textPrimary,
     letterSpacing: -0.4,
   },
   brandSubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: THEME.textSecondary,
     marginTop: 6,
     letterSpacing: 0.3,
   },

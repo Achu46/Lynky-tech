@@ -1,99 +1,182 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import Feather from 'react-native-vector-icons/Feather';
-import { THEME } from '../theme';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+
+const ORB_SKY = require('../assets/orb_sky.png');
+const ORB_CLOUDS_A = require('../assets/orb_clouds_a.png');
+const ORB_CLOUDS_B = require('../assets/orb_clouds_b.png');
 
 interface VoiceOrbProps {
   active?: boolean;
   size?: number;
+  volumeAnim?: Animated.Value;
 }
 
+/**
+ * ChatGPT-style luminous swirling cloud sphere orb driven natively without re-renders.
+ */
 export const VoiceOrb: React.FC<VoiceOrbProps> = ({
   active = false,
-  size = 124,
+  size = 136,
+  volumeAnim,
 }) => {
-  const ring2 = Math.round(size * 0.78);
-  const ring3 = Math.round(size * 0.56);
-  const core = Math.round(size * 0.36);
+  const swirlRotate = useRef(new Animated.Value(0)).current;
+  const counterRotate = useRef(new Animated.Value(0)).current;
+  const driftPhase = useRef(new Animated.Value(0)).current;
+  const staticScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const rot1 = Animated.loop(
+      Animated.timing(swirlRotate, {
+        toValue: 1,
+        duration: active ? 5200 : 9500,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const rot2 = Animated.loop(
+      Animated.timing(counterRotate, {
+        toValue: 1,
+        duration: active ? 7200 : 12500,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const drift = Animated.loop(
+      Animated.sequence([
+        Animated.timing(driftPhase, {
+          toValue: 1,
+          duration: active ? 1600 : 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(driftPhase, {
+          toValue: 0,
+          duration: active ? 1600 : 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    rot1.start();
+    rot2.start();
+    drift.start();
+
+    return () => {
+      rot1.stop();
+      rot2.stop();
+      drift.stop();
+    };
+  }, [active, counterRotate, driftPhase, swirlRotate]);
+
+  const orbScale = useMemo(() => {
+    if (!active || !volumeAnim) {
+      return staticScale;
+    }
+    return volumeAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 1.15],
+      extrapolate: 'clamp',
+    });
+  }, [active, staticScale, volumeAnim]);
+
+  const spinCW = swirlRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  const spinCCW = counterRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
+  });
+  const driftX = driftPhase.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-size * 0.08, size * 0.08],
+  });
+  const driftY = driftPhase.interpolate({
+    inputRange: [0, 1],
+    outputRange: [size * 0.05, -size * 0.06],
+  });
+
+  const layerSize = Math.round(size * 1.48);
+  const offset = -(layerSize - size) / 2;
 
   return (
-    <View
+    <Animated.View
       style={[
-        styles.outer,
+        styles.wrapper,
         {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: active
-            ? 'rgba(154, 230, 27, 0.16)'
-            : 'rgba(154, 230, 27, 0.10)',
-          borderColor: active
-            ? 'rgba(154, 230, 27, 0.45)'
-            : 'rgba(154, 230, 27, 0.22)',
+          transform: [{ scale: orbScale }],
         },
       ]}>
       <View
         style={[
-          styles.mid,
+          styles.sphereClip,
           {
-            width: ring2,
-            height: ring2,
-            borderRadius: ring2 / 2,
-            backgroundColor: active
-              ? 'rgba(154, 230, 27, 0.24)'
-              : 'rgba(154, 230, 27, 0.16)',
+            width: size,
+            height: size,
+            borderRadius: size / 2,
           },
         ]}>
-        <View
+        <Image
+          source={ORB_SKY}
+          style={{ width: size, height: size }}
+          resizeMode="cover"
+        />
+
+        <Animated.Image
+          source={ORB_CLOUDS_A}
           style={[
-            styles.inner,
+            styles.cloudLayer,
             {
-              width: ring3,
-              height: ring3,
-              borderRadius: ring3 / 2,
-              backgroundColor: active
-                ? 'rgba(154, 230, 27, 0.42)'
-                : 'rgba(154, 230, 27, 0.28)',
+              width: layerSize,
+              height: layerSize,
+              left: offset,
+              top: offset,
+              transform: [
+                { translateX: driftX },
+                { translateY: driftY },
+                { rotate: spinCW },
+              ],
             },
-          ]}>
-          <View
-            style={[
-              styles.core,
-              {
-                width: core,
-                height: core,
-                borderRadius: core / 2,
-                backgroundColor: active ? THEME.accent : '#B7EE4F',
-              },
-            ]}>
-            <Feather
-              name={active ? 'mic' : 'zap'}
-              size={Math.round(core * 0.48)}
-              color={THEME.accentInk}
-            />
-          </View>
-        </View>
+          ]}
+          resizeMode="cover"
+        />
+
+        <Animated.Image
+          source={ORB_CLOUDS_B}
+          style={[
+            styles.cloudLayer,
+            {
+              width: layerSize,
+              height: layerSize,
+              left: offset,
+              top: offset,
+              transform: [{ rotate: spinCCW }, { translateY: driftX }],
+            },
+          ]}
+          resizeMode="cover"
+        />
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  outer: {
+  wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    shadowColor: '#0ED96D',
+    shadowOpacity: 0.48,
+    shadowRadius: 28,
+    elevation: 18,
   },
-  mid: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  sphereClip: {
+    overflow: 'hidden',
   },
-  inner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  core: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  cloudLayer: {
+    position: 'absolute',
   },
 });

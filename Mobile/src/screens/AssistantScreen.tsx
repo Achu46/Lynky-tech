@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -17,21 +18,26 @@ import { MicButton } from '../components/MicButton';
 import { MessageBubble } from '../components/MessageBubble';
 import { ProposalCard } from '../components/ProposalCard';
 import { StatusBanner } from '../components/StatusBanner';
+import { ThemeToggleButton } from '../components/ThemeToggleButton';
 import { VoiceOrb } from '../components/VoiceOrb';
+import { VoiceOverlay } from '../components/VoiceOverlay';
 import { useAppState } from '../context/AppState';
+import { useTheme } from '../context/ThemeContext';
 import { useAssistant } from '../hooks/useAssistant';
 import { useVoice } from '../hooks/useVoice';
-import { THEME } from '../theme';
 
 export const AssistantScreen: React.FC = () => {
+  const { theme } = useTheme();
   const {
     messages,
     pendingProposal,
     statusBanner,
     staleMessage,
     confirmRetryPending,
+    isOffline,
     setStatusBanner,
     setStaleMessage,
+    recheckConnectivity,
   } = useAppState();
 
   const {
@@ -44,19 +50,38 @@ export const AssistantScreen: React.FC = () => {
 
   const [inputText, setInputText] = useState('');
   const listRef = useRef<FlatList>(null);
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
+  const isSendingRef = useRef(isSending);
+  isSendingRef.current = isSending;
 
   const {
     voiceAvailable,
     permissionDenied,
+    isOverlayOpen,
     isRecording,
+    isReady,
+    isProcessing,
+    overlayPrompt,
+    volumeAnim,
     partialText,
     voiceNotice,
     startRecording,
     stopRecording,
+    cancelRecording,
     clearNotice,
     openAppSettings,
   } = useVoice((finalText) => {
-    setInputText(finalText);
+    const trimmed = finalText.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (isSendingRef.current) {
+      setInputText(trimmed);
+      return;
+    }
+    setInputText('');
+    sendMessageRef.current(trimmed);
   });
 
   useEffect(() => {
@@ -72,6 +97,7 @@ export const AssistantScreen: React.FC = () => {
     if (!text || isSending) {
       return;
     }
+    Keyboard.dismiss();
     setInputText('');
     await sendMessage(text);
   };
@@ -87,14 +113,24 @@ export const AssistantScreen: React.FC = () => {
   const canSend = Boolean(inputText.trim()) && !isSending;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View pointerEvents="none" style={styles.ambientGlowTop} />
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.bgDeep }]}
+      edges={['top', 'left', 'right']}>
+      <View
+        pointerEvents="none"
+        style={[styles.ambientGlowTop, { backgroundColor: theme.bgGlow }]}
+      />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { borderBottomColor: theme.subtleBorder }]}>
           <View style={styles.headerLeft}>
-            <View style={styles.brandIcon}>
+            <View
+              style={[
+                styles.brandIcon,
+                { borderColor: theme.cardLightBorder },
+              ]}>
               <Image
                 source={require('../assets/logo.png')}
                 style={styles.brandLogoImage}
@@ -102,15 +138,29 @@ export const AssistantScreen: React.FC = () => {
               />
             </View>
             <View>
-              <Text style={styles.title}>Pocket Operator</Text>
-              <Text style={styles.subtitle}>Sandbox Food Pickup Assistant</Text>
+              <Text style={[styles.title, { color: theme.textPrimary }]}>
+                Pocket Operator
+              </Text>
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                Sandbox Food Pickup Assistant
+              </Text>
             </View>
           </View>
-          <View style={styles.livePill}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Sandbox</Text>
-          </View>
+          <ThemeToggleButton />
         </View>
+
+        {isOffline ? (
+          <StatusBanner
+            banner={{
+              kind: 'error',
+              text: 'You are offline. Check your internet connection and tap Retry.',
+            }}
+            actionLabel="Retry"
+            onAction={() => {
+              recheckConnectivity();
+            }}
+          />
+        ) : null}
 
         {staleMessage ? (
           <StatusBanner
@@ -152,6 +202,12 @@ export const AssistantScreen: React.FC = () => {
         <FlatList
           ref={listRef}
           style={styles.list}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => {
+            if (messages.length > 0) {
+              listRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
           contentContainerStyle={
             messages.length === 0 ? styles.emptyContainer : styles.listContent
           }
@@ -167,14 +223,30 @@ export const AssistantScreen: React.FC = () => {
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <VoiceOrb active={isRecording} size={136} />
-              <Text style={styles.emptyOverline}>Voice Food Concierge</Text>
-              <Text style={styles.emptyTitle}>How Can I Help?</Text>
-              <View style={styles.exampleCard}>
+              <Text
+                style={[styles.emptyOverline, { color: theme.textSecondary }]}>
+                Voice Food Concierge
+              </Text>
+              <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
+                How Can I Help?
+              </Text>
+              <View
+                style={[
+                  styles.exampleCard,
+                  {
+                    backgroundColor: theme.glass,
+                    borderColor: theme.glassBorder,
+                  },
+                ]}>
                 <View style={styles.exampleHeader}>
-                  <Feather name="compass" size={14} color={THEME.accent} />
-                  <Text style={styles.exampleLabel}>Try asking</Text>
+                  <Feather name="compass" size={14} color={theme.accent} />
+                  <Text
+                    style={[styles.exampleLabel, { color: theme.accent }]}>
+                    Try asking
+                  </Text>
                 </View>
-                <Text style={styles.emptyHint}>
+                <Text
+                  style={[styles.emptyHint, { color: theme.textSecondary }]}>
                   "Find me the cheapest vegetarian lunch for no more than 200
                   rupees. Prepare an order and then show me how to get there."
                 </Text>
@@ -185,8 +257,10 @@ export const AssistantScreen: React.FC = () => {
 
         {isSending ? (
           <View style={styles.typingRow}>
-            <ActivityIndicator size="small" color={THEME.accent} />
-            <Text style={styles.typingText}>Assistant is thinking...</Text>
+            <ActivityIndicator size="small" color={theme.accent} />
+            <Text style={[styles.typingText, { color: theme.textSecondary }]}>
+              Assistant is thinking...
+            </Text>
           </View>
         ) : null}
 
@@ -195,55 +269,72 @@ export const AssistantScreen: React.FC = () => {
             proposal={pendingProposal.proposal}
             isConfirming={isConfirming}
             retryPending={confirmRetryPending}
-            onConfirm={confirmPending}
+            onConfirm={() => {
+              Keyboard.dismiss();
+              confirmPending();
+            }}
             onCancel={cancelPending}
           />
         ) : null}
 
-        {isRecording ? (
-          <View style={styles.partialBox}>
-            <View style={styles.partialHeader}>
-              <Feather name="radio" size={14} color={THEME.accent} />
-              <Text style={styles.partialLabel}>Listening (en-IN)...</Text>
-            </View>
-            <Text style={styles.partialText}>
-              {partialText || 'Speak your meal request now...'}
-            </Text>
-          </View>
-        ) : null}
-
         <View style={styles.composerWrap}>
-          <View style={styles.inputRow}>
+          <View
+            style={[
+              styles.inputRow,
+              {
+                backgroundColor: theme.glass,
+                borderColor: theme.glassBorder,
+              },
+            ]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.textPrimary }]}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Ask anything or edit transcript..."
-              placeholderTextColor={THEME.textMuted}
+              placeholder="Ask anything or tap mic..."
+              placeholderTextColor={theme.textMuted}
               multiline
               editable={!isSending}
             />
+            <MicButton
+              voiceAvailable={voiceAvailable}
+              isRecording={isRecording}
+              disabled={isSending}
+              onPress={handleMicPress}
+            />
             <TouchableOpacity
               accessibilityLabel="Send"
-              style={[styles.sendBtn, !canSend ? styles.sendDisabled : null]}
+              style={[
+                styles.sendBtn,
+                {
+                  backgroundColor: canSend
+                    ? theme.accent
+                    : theme.accentDisabled,
+                },
+              ]}
               disabled={!canSend}
               onPress={handleSend}>
               <Feather
                 name="arrow-up"
                 size={20}
-                color={canSend ? THEME.accentInk : THEME.textMuted}
+                color={canSend ? theme.accentInk : theme.textMuted}
               />
             </TouchableOpacity>
           </View>
-
-          <MicButton
-            voiceAvailable={voiceAvailable}
-            isRecording={isRecording}
-            disabled={isSending}
-            onPress={handleMicPress}
-          />
         </View>
       </KeyboardAvoidingView>
+
+      <VoiceOverlay
+        visible={isOverlayOpen}
+        isListening={isRecording}
+        isReady={isReady}
+        isProcessing={isProcessing}
+        overlayPrompt={overlayPrompt}
+        partialText={partialText}
+        volumeAnim={volumeAnim}
+        onRetryListen={startRecording}
+        onStop={stopRecording}
+        onCancel={cancelRecording}
+      />
     </SafeAreaView>
   );
 };
@@ -251,7 +342,6 @@ export const AssistantScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: THEME.bgDeep,
   },
   flex: {
     flex: 1,
@@ -263,7 +353,6 @@ const styles = StyleSheet.create({
     width: 340,
     height: 340,
     borderRadius: 170,
-    backgroundColor: THEME.bgGlow,
     opacity: 0.72,
   },
   header: {
@@ -274,7 +363,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: THEME.subtleBorder,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -286,6 +374,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 11,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
     padding: 3,
     alignItems: 'center',
     justifyContent: 'center',
@@ -297,35 +386,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 19,
     fontWeight: '700',
-    color: THEME.textPrimary,
     letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 12,
-    color: THEME.textSecondary,
     marginTop: 1,
-  },
-  livePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: THEME.glass,
-    borderWidth: 1,
-    borderColor: THEME.glassBorder,
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: THEME.accent,
-  },
-  liveText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: THEME.textPrimary,
   },
   list: {
     flex: 1,
@@ -347,24 +412,20 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 12,
     fontWeight: '600',
-    color: THEME.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   emptyTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: THEME.textPrimary,
     marginTop: 4,
     marginBottom: 18,
     textAlign: 'center',
   },
   exampleCard: {
     width: '100%',
-    backgroundColor: THEME.glass,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: THEME.glassBorder,
     padding: 14,
   },
   exampleHeader: {
@@ -376,13 +437,11 @@ const styles = StyleSheet.create({
   exampleLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: THEME.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   emptyHint: {
     fontSize: 14,
-    color: THEME.textSecondary,
     lineHeight: 20,
   },
   typingRow: {
@@ -393,69 +452,36 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   typingText: {
-    color: THEME.textSecondary,
     fontSize: 13,
     fontWeight: '500',
   },
-  partialBox: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: THEME.accentTint,
-    borderWidth: 1,
-    borderColor: THEME.accent,
-  },
-  partialHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  partialLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.accent,
-  },
-  partialText: {
-    fontSize: 15,
-    color: THEME.textPrimary,
-    lineHeight: 21,
-  },
   composerWrap: {
-    paddingBottom: 88,
+    paddingBottom: 92,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 6,
     paddingLeft: 14,
     paddingRight: 8,
     paddingVertical: 8,
-    borderRadius: 24,
-    backgroundColor: THEME.glass,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: THEME.glassBorder,
     gap: 8,
   },
   input: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 40,
     maxHeight: 110,
-    paddingVertical: 6,
+    paddingVertical: 7,
     fontSize: 15,
-    color: THEME.textPrimary,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: THEME.accent,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sendDisabled: {
-    backgroundColor: 'rgba(154, 230, 27, 0.16)',
   },
 });

@@ -19,11 +19,6 @@ lynky tech/
 │   ├── src/                               # Screens, hooks, components, API client, Maps, storage
 │   ├── android/                           # Android native project + release APK build
 │   └── MANUAL_TEST_CHECKLIST.md           # 10-case manual device verification checklist
-├── Lynky Tech - Mobile Agent - Candidate Pack/
-│   ├── catalog.json                       # Supplied seed catalogue & demo coordinates
-│   ├── Lynky Tech - Mobile Agent - Candidate Brief.pdf
-│   └── START HERE.txt
-├── ENGINEERING_NOTE.md                    # Architecture, model choice, latency/cost, AI disclosure
 └── README.md                              # This overview
 ```
 
@@ -107,4 +102,3 @@ See [Backend/README.md](Backend/README.md) for the full API summary and `curl` e
 - **Backend Automated Tests:** `cd Backend && npm test`
 - **Mobile Automated Tests & Typecheck:** `cd Mobile && npx tsc --noEmit && npm test`
 - **Manual Device Checklist:** [Mobile/MANUAL_TEST_CHECKLIST.md](Mobile/MANUAL_TEST_CHECKLIST.md)
-- **Engineering Note & Disclosures:** [ENGINEERING_NOTE.md](file:///c:/Users/ADMIN/Desktop/lynky%20tech/ENGINEERING_NOTE.md)

@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { AppState as RNAppState, type AppStateStatus } from 'react-native';
+import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { ApiError, getProposal } from '../api/client';
 import type {
   ChatMessage,
@@ -28,6 +29,10 @@ export interface BannerInfo {
   text: string;
 }
 
+function isDeviceOffline(state: NetInfoState): boolean {
+  return state.isConnected === false || state.isInternetReachable === false;
+}
+
 interface AppContextValue {
   hydrated: boolean;
   sessionId: string | null;
@@ -38,6 +43,7 @@ interface AppContextValue {
   staleMessage: string | null;
   confirmRetryPending: boolean;
   lastConfirmedOrder: Order | null;
+  isOffline: boolean;
   appendMessage: (msg: ChatMessage) => void;
   setPendingProposalState: (pending: PendingProposalState | null) => void;
   setActiveRunIdState: (runId: string | null) => void;
@@ -45,6 +51,8 @@ interface AppContextValue {
   setStaleMessage: (msg: string | null) => void;
   setConfirmRetryPending: (pending: boolean) => void;
   setLastConfirmedOrder: (order: Order | null) => void;
+  setOffline: (offline: boolean) => void;
+  recheckConnectivity: () => Promise<boolean>;
   refreshPendingProposal: () => Promise<void>;
   clearMessages: () => void;
 }
@@ -66,9 +74,21 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({
   const [lastConfirmedOrder, setLastConfirmedOrder] = useState<Order | null>(
     null,
   );
+  const [isOffline, setIsOffline] = useState(false);
 
   const pendingRef = useRef<PendingProposalState | null>(null);
   pendingRef.current = pendingProposal;
+
+  const recheckConnectivity = useCallback(async () => {
+    try {
+      const state = await NetInfo.fetch();
+      const offline = isDeviceOffline(state);
+      setIsOffline(offline);
+      return !offline;
+    } catch {
+      return true;
+    }
+  }, []);
 
   const setPendingProposalState = useCallback(
     (next: PendingProposalState | null) => {
@@ -104,13 +124,18 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     try {
       const fresh = await getProposal(current.proposal.id);
+      if (!pendingRef.current || pendingRef.current.proposal.id !== current.proposal.id) {
+        return;
+      }
       if (fresh.status !== 'pending') {
         setPendingProposalState(null);
         setConfirmRetryPending(false);
-        setStatusBanner({
-          kind: 'info',
-          text: `Prepared order is no longer pending (${fresh.status}).`,
-        });
+        if (fresh.status !== 'confirmed') {
+          setStatusBanner({
+            kind: 'info',
+            text: `Prepared order is no longer pending (${fresh.status}).`,
+          });
+        }
       } else {
         setPendingProposalState({
           proposal: {
@@ -125,9 +150,31 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({
         setPendingProposalState(null);
         setConfirmRetryPending(false);
       }
-      // On offline/network error when resuming, keep stored pending proposal so nothing is lost
+      // On network/server error when resuming, keep stored pending proposal
     }
   }, [setPendingProposalState]);
+
+  useEffect(() => {
+    let mounted = true;
+    NetInfo.fetch()
+      .then((state) => {
+        if (mounted) {
+          setIsOffline(isDeviceOffline(state));
+        }
+      })
+      .catch(() => {});
+
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (mounted) {
+        setIsOffline(isDeviceOffline(state));
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,12 +217,13 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({
       'change',
       (nextState: AppStateStatus) => {
         if (nextState === 'active') {
+          recheckConnectivity().catch(() => {});
           refreshPendingProposal().catch(() => {});
         }
       },
     );
     return () => sub.remove();
-  }, [refreshPendingProposal]);
+  }, [recheckConnectivity, refreshPendingProposal]);
 
   return (
     <AppContext.Provider
@@ -189,6 +237,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({
         staleMessage,
         confirmRetryPending,
         lastConfirmedOrder,
+        isOffline,
         appendMessage,
         setPendingProposalState,
         setActiveRunIdState,
@@ -196,6 +245,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({
         setStaleMessage,
         setConfirmRetryPending,
         setLastConfirmedOrder,
+        setOffline: setIsOffline,
+        recheckConnectivity,
         refreshPendingProposal,
         clearMessages,
       }}>

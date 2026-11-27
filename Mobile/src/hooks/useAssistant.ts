@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ApiError,
   cancelProposal,
@@ -15,6 +15,13 @@ import {
   getOrCreateSessionId,
 } from '../services/storage';
 
+function isMenuBrowsePrompt(text: string): boolean {
+  return (
+    /\b(list|menu|dishes|options|items|catalog)\b/i.test(text) &&
+    !/\b(order|buy|book|prepare|place|confirm)\b/i.test(text)
+  );
+}
+
 export function useAssistant() {
   const {
     sessionId,
@@ -27,13 +34,20 @@ export function useAssistant() {
     setStaleMessage,
     setConfirmRetryPending,
     setLastConfirmedOrder,
+    recheckConnectivity,
   } = useAppState();
 
   const [isSending, setIsSending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const isSendingRef = useRef(false);
+  const isConfirmingRef = useRef(false);
 
   const handleDeviceAction = useCallback(
-    async (action: DeviceAction, restaurantId?: string) => {
+    async (
+      action: DeviceAction,
+      restaurantId?: string,
+      savedOrderPrefix?: string,
+    ) => {
       if (restaurantId) {
         await cacheRestaurantCoords(restaurantId, {
           latitude: action.latitude,
@@ -47,10 +61,17 @@ export function useAssistant() {
         action.label,
       );
       const label = formatDirectionsStatus(res.outcome);
-      setStatusBanner({
-        kind: res.outcome === 'could_not_open' ? 'error' : 'info',
-        text: `${label} — ${res.message}`,
-      });
+      if (savedOrderPrefix) {
+        setStatusBanner({
+          kind: 'success',
+          text: `${savedOrderPrefix} — ${label}`,
+        });
+      } else {
+        setStatusBanner({
+          kind: res.outcome === 'could_not_open' ? 'error' : 'info',
+          text: `${label} — ${res.message}`,
+        });
+      }
       // Report real outcome; never create/retry an order if reporting fails
       reportDirectionsResult(action.order_id, res.outcome).catch(() => {});
     },
@@ -63,15 +84,19 @@ export function useAssistant() {
       options?: { retryRunId?: string },
     ): Promise<boolean> => {
       const trimmed = rawText.trim();
-      if (!trimmed || isSending) {
+      if (!trimmed || isSendingRef.current) {
         return false;
       }
 
+      isSendingRef.current = true;
       setIsSending(true);
       setStatusBanner(null);
 
       const sid = sessionId || (await getOrCreateSessionId());
-      const runIdToUse = options?.retryRunId || activeRunId || generateUuid();
+      const runIdToUse =
+        options?.retryRunId ||
+        (!isMenuBrowsePrompt(trimmed) ? activeRunId : null) ||
+        generateUuid();
 
       if (!options?.retryRunId) {
         appendMessage({
@@ -136,10 +161,13 @@ export function useAssistant() {
         return true;
       } catch (err: any) {
         setActiveRunIdState(null);
-        const msg =
-          err instanceof ApiError
+        const isNetErr = err instanceof ApiError && err.isNetworkOrTimeout;
+        const online = isNetErr ? await recheckConnectivity() : true;
+        const msg = !online
+          ? 'You are offline right now. Connect to the internet and tap Retry.'
+          : err instanceof ApiError
             ? err.message
-            : 'Could not reach the server. Please retry.';
+            : 'Could not reach the server right now. Please tap Retry.';
         appendMessage({
           id: generateUuid(),
           role: 'assistant',
@@ -152,6 +180,7 @@ export function useAssistant() {
         });
         return false;
       } finally {
+        isSendingRef.current = false;
         setIsSending(false);
       }
     },
@@ -159,7 +188,7 @@ export function useAssistant() {
       activeRunId,
       appendMessage,
       handleDeviceAction,
-      isSending,
+      recheckConnectivity,
       sessionId,
       setActiveRunIdState,
       setConfirmRetryPending,
@@ -170,10 +199,11 @@ export function useAssistant() {
   );
 
   const confirmPending = useCallback(async () => {
-    if (!pendingProposal || isConfirming) {
+    if (!pendingProposal || isConfirmingRef.current) {
       return;
     }
 
+    isConfirmingRef.current = true;
     setIsConfirming(true);
     setConfirmRetryPending(false);
 
@@ -184,13 +214,16 @@ export function useAssistant() {
       );
 
       setPendingProposalState(null);
+      setActiveRunIdState(null);
       setStaleMessage(null);
       setConfirmRetryPending(false);
       setLastConfirmedOrder(res.order);
 
+      const savedBannerText = `Sandbox order saved: ${res.order.dish_name} at ${res.order.restaurant_name} (Rs ${res.order.total}).`;
+
       setStatusBanner({
         kind: 'success',
-        text: `Sandbox order saved: ${res.order.dish_name} at ${res.order.restaurant_name} (Rs ${res.order.total}).`,
+        text: savedBannerText,
       });
 
       appendMessage({
@@ -201,7 +234,11 @@ export function useAssistant() {
       });
 
       if (res.device_action && res.device_action.type === 'open_maps') {
-        await handleDeviceAction(res.device_action, res.order.restaurant_id);
+        await handleDeviceAction(
+          res.device_action,
+          res.order.restaurant_id,
+          savedBannerText,
+        );
       }
     } catch (err: any) {
       if (err instanceof ApiError) {
@@ -238,10 +275,13 @@ export function useAssistant() {
         }
 
         if (err.isNetworkOrTimeout) {
+          const online = await recheckConnectivity();
           setConfirmRetryPending(true);
           setStatusBanner({
             kind: 'error',
-            text: 'Could not reach the server. Retry',
+            text: !online
+              ? "You're offline right now. Your order wasn't placed — connect to the internet and tap Retry."
+              : "Could not reach the server. Your order wasn't placed — tap Retry.",
           });
           return;
         }
@@ -251,20 +291,25 @@ export function useAssistant() {
           text: err.message,
         });
       } else {
+        const online = await recheckConnectivity();
         setConfirmRetryPending(true);
         setStatusBanner({
           kind: 'error',
-          text: 'Could not reach the server. Retry',
+          text: !online
+            ? "You're offline right now. Your order wasn't placed — connect to the internet and tap Retry."
+            : "Could not reach the server. Your order wasn't placed — tap Retry.",
         });
       }
     } finally {
+      isConfirmingRef.current = false;
       setIsConfirming(false);
     }
   }, [
     appendMessage,
     handleDeviceAction,
-    isConfirming,
     pendingProposal,
+    recheckConnectivity,
+    setActiveRunIdState,
     setConfirmRetryPending,
     setLastConfirmedOrder,
     setPendingProposalState,
@@ -273,9 +318,10 @@ export function useAssistant() {
   ]);
 
   const cancelPending = useCallback(async () => {
-    if (!pendingProposal || isConfirming) {
+    if (!pendingProposal || isConfirmingRef.current) {
       return;
     }
+    isConfirmingRef.current = true;
     setIsConfirming(true);
     try {
       await cancelProposal(pendingProposal.proposal.id);
@@ -283,8 +329,10 @@ export function useAssistant() {
       // Clear local approval card even if already resolved on server
     } finally {
       setPendingProposalState(null);
+      setActiveRunIdState(null);
       setStaleMessage(null);
       setConfirmRetryPending(false);
+      isConfirmingRef.current = false;
       setIsConfirming(false);
       setStatusBanner({
         kind: 'info',
@@ -292,8 +340,8 @@ export function useAssistant() {
       });
     }
   }, [
-    isConfirming,
     pendingProposal,
+    setActiveRunIdState,
     setConfirmRetryPending,
     setPendingProposalState,
     setStaleMessage,

@@ -2,6 +2,17 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    fetch: jest.fn(async () => ({
+      isConnected: true,
+      isInternetReachable: true,
+    })),
+    addEventListener: jest.fn(() => jest.fn()),
+  },
+}));
+
 jest.mock('@react-native-voice/voice', () => ({
   __esModule: true,
   default: {
