@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -94,7 +95,11 @@ export const AssistantScreen: React.FC = () => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.brandIcon}>
-              <Feather name="zap" size={16} color={THEME.accentInk} />
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.brandLogoImage}
+                resizeMode="contain"
+              />
             </View>
             <View>
               <Text style={styles.title}>Pocket Operator</Text>
@@ -277,12 +282,17 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   brandIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: THEME.accent,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    padding: 3,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  brandLogoImage: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 19,
