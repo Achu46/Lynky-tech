@@ -1,4 +1,7 @@
+import dns from 'node:dns';
 import { GoogleGenAI, Type } from '@google/genai';
+
+dns.setDefaultResultOrder('ipv4first');
 
 function toGeminiSchema(jsonSchema) {
   if (!jsonSchema || typeof jsonSchema !== 'object') return { type: Type.OBJECT };
@@ -30,7 +33,7 @@ function toGeminiSchema(jsonSchema) {
 export class GeminiLlmClient {
   constructor({
     apiKey = process.env.GEMINI_API_KEY,
-    model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    model = process.env.GEMINI_MODEL || 'gemini-3-flash-preview'
   } = {}) {
     this.apiKey = apiKey;
     this.model = model;
@@ -65,12 +68,15 @@ export class GeminiLlmClient {
       if (m.role === 'model_tool_calls') {
         return {
           role: 'model',
-          parts: m.toolCalls.map((tc) => ({
-            functionCall: {
-              name: tc.name,
-              args: tc.args
-            }
-          }))
+          parts:
+            m.rawParts && m.rawParts.length > 0
+              ? m.rawParts
+              : m.toolCalls.map((tc) => ({
+                  functionCall: {
+                    name: tc.name,
+                    args: tc.args
+                  }
+                }))
         };
       }
       return {
@@ -79,21 +85,42 @@ export class GeminiLlmClient {
       };
     });
 
-    const response = await this.ai.models.generateContent({
-      model: this.model,
-      contents,
-      config: {
-        systemInstruction: systemPrompt,
-        tools: [{ functionDeclarations }],
-        abortSignal: signal
+    let response;
+    try {
+      response = await this.ai.models.generateContent({
+        model: this.model,
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          tools: [{ functionDeclarations }],
+          abortSignal: signal
+        }
+      });
+    } catch (err) {
+      const msg = String(err?.message || '');
+      const isTransient = err?.status === 503 || msg.includes('503') || msg.includes('UNAVAILABLE');
+      if (isTransient && this.model !== 'gemini-3.1-flash-lite') {
+        response = await this.ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite',
+          contents,
+          config: {
+            systemInstruction: systemPrompt,
+            tools: [{ functionDeclarations }],
+            abortSignal: signal
+          }
+        });
+      } else {
+        throw err;
       }
-    });
+    }
 
     const functionCalls = response.functionCalls || [];
     const text = response.text || '';
+    const rawParts = response.candidates?.[0]?.content?.parts || null;
 
     return {
       text,
+      rawParts,
       toolCalls: functionCalls.map((fc) => ({
         name: fc.name,
         args: fc.args || {}

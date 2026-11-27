@@ -258,7 +258,11 @@ export async function runAgentLoop({
       return out;
     }
 
-    messages.push({ role: 'model_tool_calls', toolCalls });
+    messages.push({
+      role: 'model_tool_calls',
+      toolCalls,
+      rawParts: llmTurn?.rawParts || null
+    });
 
     for (const tc of toolCalls) {
       const stepStart = new Date();
