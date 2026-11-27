@@ -230,6 +230,17 @@ export async function runAgentLoop({
       ]);
     } catch (err) {
       logger.error('LLM call failed', { run_id: runId, error: err?.message });
+      if (createdProposal) {
+        const fallbackMsg = `Prepared ${createdProposal.dish_name || createdProposal.dish_id} from ${createdProposal.restaurant_name || createdProposal.restaurant_id} for Rs ${createdProposal.price}. Please confirm or cancel on your screen.`;
+        await finishRun(pool, runId, 'needs_approval', fallbackMsg, null);
+        return {
+          run_id: runId,
+          status: 'needs_approval',
+          assistant_message: fallbackMsg,
+          proposal: createdProposal,
+          activity
+        };
+      }
       const msg = 'Sorry, the assistant could not respond right now. Please try again.';
       await finishRun(pool, runId, 'failed', msg, 'LLM_ERROR');
       return {

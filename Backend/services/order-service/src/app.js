@@ -98,13 +98,26 @@ export function createOrderApp({
     asyncHandler(async (req, res) => {
       const body = parseWithSchema(createProposalSchema, req.body, 'proposal');
 
-      // Retry idempotency: if this run_id already has a pending proposal, return it
+      // Retry idempotency: if this run_id already has a matching pending proposal, return it.
+      // If constraints/dish changed (e.g. user changed veg -> non-veg on retry/follow-up), cancel the old pending one first.
       const existing = await pool.query(
         `SELECT * FROM order_proposals WHERE run_id = $1 AND status = 'pending' LIMIT 1`,
         [body.run_id]
       );
       if (existing.rows.length > 0) {
-        return res.status(200).json(formatProposal(existing.rows[0]));
+        const prevProp = existing.rows[0];
+        if (
+          prevProp.dish_id === body.dish_id &&
+          Number(prevProp.max_price) === body.max_price &&
+          Boolean(prevProp.vegetarian) === body.vegetarian &&
+          Boolean(prevProp.wants_directions) === body.wants_directions
+        ) {
+          return res.status(200).json(formatProposal(prevProp));
+        }
+        await pool.query(
+          `UPDATE order_proposals SET status = 'cancelled', resolved_at = now() WHERE id = $1`,
+          [prevProp.id]
+        );
       }
 
       const base = getCatalogUrl();

@@ -12,9 +12,11 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Feather from 'react-native-vector-icons/Feather';
 import { ApiError, getRuns, getRunTrace } from '../api/client';
 import type { RunRecord, RunTrace } from '../api/types';
 import { StatusBanner } from '../components/StatusBanner';
+import { THEME } from '../theme';
 
 export const ActivityScreen: React.FC = () => {
   const [runs, setRuns] = useState<RunRecord[]>([]);
@@ -77,9 +79,19 @@ export const ActivityScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View pointerEvents="none" style={styles.ambientGlowTop} />
       <View style={styles.header}>
-        <Text style={styles.title}>Activity & Traces</Text>
-        <Text style={styles.subtitle}>Recent assistant runs and tool steps</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerIcon}>
+            <Feather name="activity" size={18} color={THEME.accent} />
+          </View>
+          <View>
+            <Text style={styles.title}>Activity & Traces</Text>
+            <Text style={styles.subtitle}>
+              Recent assistant runs and tool steps
+            </Text>
+          </View>
+        </View>
       </View>
 
       {errorText ? (
@@ -98,24 +110,31 @@ export const ActivityScreen: React.FC = () => {
       ) : null}
 
       {selectedTrace ? (
-        <ScrollView style={styles.traceContainer}>
+        <ScrollView
+          style={styles.traceContainer}
+          contentContainerStyle={styles.traceScrollContent}>
           <View style={styles.traceActions}>
             <TouchableOpacity
               style={styles.backBtn}
               onPress={() => setSelectedTrace(null)}>
+              <Feather name="chevron-left" size={16} color={THEME.textPrimary} />
               <Text style={styles.backText}>Back to Runs</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.copyBtn} onPress={handleCopyTrace}>
+              <Feather name="copy" size={15} color={THEME.accentInk} />
               <Text style={styles.copyText}>Copy trace JSON</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.traceSummary}>
             <Text style={styles.runPrompt}>{selectedTrace.user_message}</Text>
-            <Text style={styles.runMeta}>
-              Status: {selectedTrace.status} •{' '}
-              {new Date(selectedTrace.started_at).toLocaleString()}
-            </Text>
+            <View style={styles.metaRow}>
+              <Feather name="clock" size={13} color={THEME.textSecondary} />
+              <Text style={styles.runMeta}>
+                Status: {selectedTrace.status} |{' '}
+                {new Date(selectedTrace.started_at).toLocaleString()}
+              </Text>
+            </View>
             <Text style={styles.runId}>Run ID: {selectedTrace.id}</Text>
           </View>
 
@@ -131,15 +150,23 @@ export const ActivityScreen: React.FC = () => {
                   <Text style={styles.stepTool}>
                     #{step.step_number} {step.tool_name}
                   </Text>
-                  <Text
+                  <View
                     style={[
                       styles.outcomeBadge,
                       step.outcome === 'ok'
                         ? styles.outcomeOk
                         : styles.outcomeErr,
                     ]}>
-                    {step.outcome}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.outcomeText,
+                        step.outcome === 'ok'
+                          ? styles.outcomeOkText
+                          : styles.outcomeErrText,
+                      ]}>
+                      {step.outcome}
+                    </Text>
+                  </View>
                 </View>
                 <Text style={styles.stepNote}>{step.short_note}</Text>
                 <Text style={styles.stepTime}>
@@ -151,13 +178,13 @@ export const ActivityScreen: React.FC = () => {
         </ScrollView>
       ) : loading && runs.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0F766E" />
+          <ActivityIndicator size="large" color={THEME.accent} />
         </View>
       ) : (
         <View style={styles.flex}>
           {traceLoading ? (
             <View style={styles.loadingTraceRow}>
-              <ActivityIndicator size="small" color="#0F766E" />
+              <ActivityIndicator size="small" color={THEME.accent} />
               <Text style={styles.loadingTraceText}>Loading trace...</Text>
             </View>
           ) : null}
@@ -168,21 +195,32 @@ export const ActivityScreen: React.FC = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={() => loadRuns(true)}
-                colors={['#0F766E']}
+                colors={[THEME.accent]}
+                tintColor={THEME.accent}
               />
             }
             contentContainerStyle={
               runs.length === 0 ? styles.center : styles.listContent
             }
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No assistant runs yet.</Text>
+              <View style={styles.emptyBox}>
+                <View style={styles.emptyIcon}>
+                  <Feather name="activity" size={26} color={THEME.accent} />
+                </View>
+                <Text style={styles.emptyText}>No assistant runs yet.</Text>
+                <Text style={styles.emptySubtext}>
+                  Tool calls and traces will appear here after your first chat.
+                </Text>
+              </View>
             }
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.runCard}
                 onPress={() => handleSelectRun(item.id)}>
                 <View style={styles.runCardTop}>
-                  <Text style={styles.runStatus}>{item.status}</Text>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.runStatus}>{item.status}</Text>
+                  </View>
                   <Text style={styles.runTime}>
                     {new Date(item.started_at).toLocaleString()}
                   </Text>
@@ -190,7 +228,14 @@ export const ActivityScreen: React.FC = () => {
                 <Text style={styles.runMsg} numberOfLines={2}>
                   {item.user_message}
                 </Text>
-                <Text style={styles.tapHint}>Tap to inspect trace</Text>
+                <View style={styles.tapHintRow}>
+                  <Text style={styles.tapHint}>Tap to inspect trace</Text>
+                  <Feather
+                    name="chevron-right"
+                    size={15}
+                    color={THEME.accent}
+                  />
+                </View>
               </TouchableOpacity>
             )}
           />
@@ -203,191 +248,279 @@ export const ActivityScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.bgDeep,
+  },
+  ambientGlowTop: {
+    position: 'absolute',
+    top: -110,
+    alignSelf: 'center',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: THEME.bgGlow,
+    opacity: 0.65,
   },
   flex: {
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: THEME.subtleBorder,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: THEME.glass,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
+    color: THEME.textPrimary,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#475569',
-    marginTop: 2,
+    fontSize: 12,
+    color: THEME.textSecondary,
+    marginTop: 1,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 100,
+  },
+  emptyBox: {
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: THEME.glass,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   emptyText: {
     fontSize: 16,
-    color: '#64748B',
+    fontWeight: '600',
+    color: THEME.textPrimary,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
   listContent: {
-    padding: 12,
-    gap: 10,
+    padding: 16,
+    paddingBottom: 104,
   },
   loadingTraceRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 8,
   },
   loadingTraceText: {
-    color: '#0F766E',
-    fontWeight: '600',
+    color: THEME.textSecondary,
+    fontSize: 13,
   },
   runCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: THEME.glass,
+    borderRadius: 18,
+    padding: 15,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 14,
+    borderColor: THEME.glassBorder,
   },
   runCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusPill: {
+    backgroundColor: THEME.accentTint,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
   },
   runStatus: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#0F766E',
+    color: THEME.accent,
     textTransform: 'uppercase',
   },
   runTime: {
     fontSize: 12,
-    color: '#64748B',
+    color: THEME.textMuted,
   },
   runMsg: {
-    fontSize: 16,
-    color: '#0F172A',
+    fontSize: 15,
+    color: THEME.textPrimary,
     fontWeight: '500',
+    marginBottom: 8,
+    lineHeight: 21,
+  },
+  tapHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   tapHint: {
-    fontSize: 12,
-    color: '#0F766E',
-    marginTop: 6,
+    fontSize: 13,
+    color: THEME.accent,
     fontWeight: '600',
   },
   traceContainer: {
     flex: 1,
-    padding: 12,
+  },
+  traceScrollContent: {
+    padding: 16,
+    paddingBottom: 104,
   },
   traceActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
     gap: 10,
   },
   backBtn: {
-    backgroundColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 999,
+    backgroundColor: THEME.glass,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
   },
   backText: {
-    color: '#0F172A',
-    fontWeight: '700',
+    color: THEME.textPrimary,
+    fontWeight: '600',
+    fontSize: 13,
   },
   copyBtn: {
-    backgroundColor: '#0F766E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 999,
+    backgroundColor: THEME.accent,
   },
   copyText: {
-    color: '#FFFFFF',
+    color: THEME.accentInk,
     fontWeight: '700',
+    fontSize: 13,
   },
   traceSummary: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: THEME.glass,
+    borderRadius: 18,
+    padding: 15,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 14,
-    marginBottom: 14,
+    borderColor: THEME.glassBorder,
+    marginBottom: 16,
   },
   runPrompt: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: THEME.textPrimary,
+    marginBottom: 8,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
   },
   runMeta: {
     fontSize: 13,
-    color: '#475569',
-    marginTop: 6,
+    color: THEME.textSecondary,
   },
   runId: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 4,
+    fontSize: 11,
+    color: THEME.textMuted,
+    marginTop: 2,
   },
   stepsHeading: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 8,
+    color: THEME.textPrimary,
+    marginBottom: 10,
   },
   emptyStepText: {
+    color: THEME.textSecondary,
     fontSize: 14,
-    color: '#64748B',
   },
   stepCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    backgroundColor: THEME.glass,
+    borderRadius: 16,
+    padding: 13,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 12,
+    borderColor: THEME.glassBorder,
     marginBottom: 10,
   },
   stepHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 6,
   },
   stepTool: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: THEME.textPrimary,
   },
   outcomeBadge: {
-    fontSize: 12,
-    fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
-    overflow: 'hidden',
+    borderRadius: 999,
   },
   outcomeOk: {
-    backgroundColor: '#DCFCE7',
-    color: '#14532D',
+    backgroundColor: THEME.accentTint,
   },
   outcomeErr: {
-    backgroundColor: '#FEE2E2',
-    color: '#7F1D1D',
+    backgroundColor: 'rgba(248, 113, 113, 0.2)',
+  },
+  outcomeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  outcomeOkText: {
+    color: THEME.accent,
+  },
+  outcomeErrText: {
+    color: THEME.error,
   },
   stepNote: {
-    fontSize: 14,
-    color: '#334155',
-    marginTop: 6,
+    fontSize: 13,
+    color: THEME.textSecondary,
+    marginBottom: 4,
+    lineHeight: 18,
   },
   stepTime: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 4,
+    fontSize: 11,
+    color: THEME.textMuted,
   },
 });

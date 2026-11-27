@@ -33,7 +33,7 @@ function toGeminiSchema(jsonSchema) {
 export class GeminiLlmClient {
   constructor({
     apiKey = process.env.GEMINI_API_KEY,
-    model = process.env.GEMINI_MODEL || 'gemini-3-flash-preview'
+    model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite'
   } = {}) {
     this.apiKey = apiKey;
     this.model = model;

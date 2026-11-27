@@ -43,8 +43,18 @@ export function useVoice(onFinalTranscript?: (text: string) => void): UseVoiceRe
     async function checkAvailability() {
       try {
         const available = await Voice.isAvailable();
+        if (available) {
+          if (mounted) {
+            setVoiceAvailable(true);
+          }
+          return;
+        }
+        const services =
+          typeof Voice.getSpeechRecognitionServices === 'function'
+            ? await Voice.getSpeechRecognitionServices()
+            : [];
         if (mounted) {
-          setVoiceAvailable(Boolean(available));
+          setVoiceAvailable(Array.isArray(services) && services.length > 0);
         }
       } catch {
         if (mounted) {

@@ -18,6 +18,7 @@ export function getPool(connectionString = process.env.DATABASE_URL) {
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000
     });
+    poolInstance.on('error', () => {});
   }
   return poolInstance;
 }

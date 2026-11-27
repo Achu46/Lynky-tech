@@ -16,21 +16,27 @@ export async function seedCatalog(pool = getPool(), catalogPath = DEFAULT_CATALO
   await withTransaction(pool, async (client) => {
     await client.query('TRUNCATE TABLE dishes, restaurants');
 
-    for (const r of restaurants) {
+    if (restaurants.length > 0) {
+      const rValues = [];
+      const rPlaceholders = restaurants.map((r, i) => {
+        const base = i * 4;
+        rValues.push(r.id, r.name, r.latitude, r.longitude);
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
+      });
       await client.query(
         `INSERT INTO restaurants (id, name, latitude, longitude)
-         VALUES ($1, $2, $3, $4)`,
-        [r.id, r.name, r.latitude, r.longitude]
+         VALUES ${rPlaceholders.join(', ')}`,
+        rValues
       );
     }
 
-    for (const d of items) {
-      const isVegetarian = d.vegetarian !== undefined ? d.vegetarian : d.is_vegetarian;
-      const isAvailable = d.available !== undefined ? d.available : d.is_available;
-      await client.query(
-        `INSERT INTO dishes (id, restaurant_id, name, is_vegetarian, price, is_available, description)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
+    if (items.length > 0) {
+      const dValues = [];
+      const dPlaceholders = items.map((d, i) => {
+        const base = i * 7;
+        const isVegetarian = d.vegetarian !== undefined ? d.vegetarian : d.is_vegetarian;
+        const isAvailable = d.available !== undefined ? d.available : d.is_available;
+        dValues.push(
           d.id,
           d.restaurant_id,
           d.name,
@@ -38,7 +44,13 @@ export async function seedCatalog(pool = getPool(), catalogPath = DEFAULT_CATALO
           d.price,
           isAvailable !== false,
           d.description ?? ''
-        ]
+        );
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`;
+      });
+      await client.query(
+        `INSERT INTO dishes (id, restaurant_id, name, is_vegetarian, price, is_available, description)
+         VALUES ${dPlaceholders.join(', ')}`,
+        dValues
       );
     }
   });

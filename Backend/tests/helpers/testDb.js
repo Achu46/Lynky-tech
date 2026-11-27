@@ -21,6 +21,9 @@ function getFreePort() {
 }
 
 export async function startTestDatabase({ dataDir, persistent = false } = {}) {
+  if (!process.env.REQUEST_TIMEOUT_MS) {
+    process.env.REQUEST_TIMEOUT_MS = '25000';
+  }
   if (process.env.DATABASE_URL && process.env.FORCE_EMBEDDED_PG !== 'true' && !dataDir) {
     const pools = [];
     const createPool = (max = 20) => {
@@ -52,6 +55,12 @@ export async function startTestDatabase({ dataDir, persistent = false } = {}) {
   });
 
   await db.initialise();
+  if (!persistent) {
+    await fs.appendFile(
+      path.join(dir, 'postgresql.conf'),
+      '\nfsync = off\nsynchronous_commit = off\nfull_page_writes = off\n'
+    );
+  }
   await db.start();
   await db.createDatabase('pocket_operator');
 
@@ -59,10 +68,14 @@ export async function startTestDatabase({ dataDir, persistent = false } = {}) {
   const pools = [];
   const createPool = (max = 20) => {
     const p = new Pool({ connectionString, max });
+    p.on('error', () => {});
     pools.push(p);
     return p;
   };
   const pool = createPool(20);
+  if (!persistent) {
+    await pool.query('ALTER DATABASE pocket_operator SET synchronous_commit = off');
+  }
   await runMigrations(pool);
   await seedCatalog(pool);
 

@@ -1,6 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Feather from 'react-native-vector-icons/Feather';
 import type { ChatMessage } from '../api/types';
+import { THEME } from '../theme';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -41,6 +43,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             style={[styles.retryBtn, disabled ? styles.retryDisabled : null]}
             disabled={disabled}
             onPress={() => onRetry(message.retryText!, message.retryRunId!)}>
+            <Feather name="rotate-cw" size={14} color={THEME.accentInk} />
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         ) : null}
@@ -51,8 +54,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginVertical: 5,
-    marginHorizontal: 12,
+    marginVertical: 6,
+    marginHorizontal: 14,
     flexDirection: 'row',
   },
   userWrapper: {
@@ -62,47 +65,54 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   bubble: {
-    maxWidth: '85%',
-    borderRadius: 14,
+    maxWidth: '84%',
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
   userBubble: {
-    backgroundColor: '#0F766E',
+    backgroundColor: THEME.accent,
+    borderBottomRightRadius: 6,
   },
   assistantBubble: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.glass,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: THEME.subtleBorder,
+    borderBottomLeftRadius: 6,
   },
   failedBubble: {
-    borderColor: '#DC2626',
-    backgroundColor: '#FEF2F2',
+    borderColor: 'rgba(239, 68, 68, 0.55)',
+    backgroundColor: THEME.errorBg,
   },
   text: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
   },
   userText: {
-    color: '#FFFFFF',
+    color: THEME.accentInk,
+    fontWeight: '600',
   },
   assistantText: {
-    color: '#0F172A',
+    color: THEME.textPrimary,
   },
   retryBtn: {
-    marginTop: 8,
+    marginTop: 10,
     alignSelf: 'flex-start',
-    backgroundColor: '#0F766E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: THEME.accent,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 999,
   },
   retryDisabled: {
     opacity: 0.5,
   },
   retryText: {
-    color: '#FFFFFF',
+    color: THEME.accentInk,
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
   },
 });
+

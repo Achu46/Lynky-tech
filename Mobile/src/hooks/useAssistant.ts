@@ -90,6 +90,7 @@ export function useAssistant() {
         });
 
         if (res.status === 'failed') {
+          setActiveRunIdState(null);
           appendMessage({
             id: generateUuid(),
             role: 'assistant',
@@ -134,6 +135,7 @@ export function useAssistant() {
 
         return true;
       } catch (err: any) {
+        setActiveRunIdState(null);
         const msg =
           err instanceof ApiError
             ? err.message

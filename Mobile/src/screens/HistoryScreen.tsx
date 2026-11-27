@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Feather from 'react-native-vector-icons/Feather';
 import {
   ApiError,
   getOrders,
@@ -25,6 +26,7 @@ import {
   getCachedRestaurantCoords,
   getOrCreateSessionId,
 } from '../services/storage';
+import { THEME } from '../theme';
 
 export const HistoryScreen: React.FC = () => {
   const { sessionId } = useAppState();
@@ -122,9 +124,17 @@ export const HistoryScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View pointerEvents="none" style={styles.ambientGlowTop} />
       <View style={styles.header}>
-        <Text style={styles.title}>Order History</Text>
-        <Text style={styles.subtitle}>Saved Sandbox Pickup Orders</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerIcon}>
+            <Feather name="shopping-bag" size={18} color={THEME.accent} />
+          </View>
+          <View>
+            <Text style={styles.title}>Order History</Text>
+            <Text style={styles.subtitle}>Saved Sandbox Pickup Orders</Text>
+          </View>
+        </View>
       </View>
 
       {errorText ? (
@@ -144,7 +154,7 @@ export const HistoryScreen: React.FC = () => {
 
       {loading && orders.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0F766E" />
+          <ActivityIndicator size="large" color={THEME.accent} />
         </View>
       ) : (
         <FlatList
@@ -154,31 +164,59 @@ export const HistoryScreen: React.FC = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadOrders(true)}
-              colors={['#0F766E']}
+              colors={[THEME.accent]}
+              tintColor={THEME.accent}
             />
           }
           contentContainerStyle={
             orders.length === 0 ? styles.center : styles.listContent
           }
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No saved sandbox orders yet.</Text>
+            <View style={styles.emptyBox}>
+              <View style={styles.emptyIcon}>
+                <Feather name="shopping-bag" size={26} color={THEME.accent} />
+              </View>
+              <Text style={styles.emptyText}>No saved sandbox orders yet.</Text>
+              <Text style={styles.emptySubtext}>
+                Confirm a meal proposal in Assistant to see it here.
+              </Text>
+            </View>
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
+              <View style={styles.cardTopRow}>
+                <View style={styles.sandboxBadge}>
+                  <Feather name="shield" size={11} color={THEME.cardDarkText} />
+                  <Text style={styles.sandboxBadgeText}>Sandbox order saved</Text>
+                </View>
+                <Text style={styles.time}>
+                  {new Date(item.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+
               <View style={styles.cardHeader}>
                 <Text style={styles.mealName}>{item.dish_name}</Text>
                 <Text style={styles.total}>Rs {item.total}</Text>
               </View>
-              <Text style={styles.restaurant}>{item.restaurant_name}</Text>
-              <Text style={styles.statusLine}>
-                Status: Sandbox order saved
-              </Text>
-              <Text style={styles.statusLine}>
-                Directions: {formatDirectionsStatus(item.directions_status)}
-              </Text>
-              <Text style={styles.time}>
-                {new Date(item.created_at).toLocaleString()}
-              </Text>
+
+              <View style={styles.metaRow}>
+                <Feather name="map-pin" size={14} color={THEME.cardMutedText} />
+                <Text style={styles.restaurant}>{item.restaurant_name}</Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Feather name="check-circle" size={14} color="#256D1B" />
+                <Text style={styles.statusLine}>
+                  Status: Sandbox order saved
+                </Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Feather name="compass" size={14} color={THEME.cardMutedText} />
+                <Text style={styles.statusLine}>
+                  Directions: {formatDirectionsStatus(item.directions_status)}
+                </Text>
+              </View>
 
               <TouchableOpacity
                 style={[
@@ -187,6 +225,7 @@ export const HistoryScreen: React.FC = () => {
                 ]}
                 disabled={openingOrderId !== null}
                 onPress={() => handleOpenDirections(item)}>
+                <Feather name="navigation" size={15} color={THEME.accent} />
                 <Text style={styles.dirBtnText}>
                   {openingOrderId === item.id
                     ? 'Opening...'
@@ -204,90 +243,165 @@ export const HistoryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.bgDeep,
+  },
+  ambientGlowTop: {
+    position: 'absolute',
+    top: -110,
+    alignSelf: 'center',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: THEME.bgGlow,
+    opacity: 0.65,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: THEME.subtleBorder,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: THEME.glass,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
+    color: THEME.textPrimary,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#475569',
-    marginTop: 2,
+    fontSize: 12,
+    color: THEME.textSecondary,
+    marginTop: 1,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 100,
+  },
+  emptyBox: {
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: THEME.glass,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   emptyText: {
     fontSize: 16,
-    color: '#64748B',
+    fontWeight: '600',
+    color: THEME.textPrimary,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
   listContent: {
-    padding: 12,
-    gap: 10,
+    padding: 16,
+    paddingBottom: 104,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 14,
+    backgroundColor: THEME.cardLight,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sandboxBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#E2E9DC',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  sandboxBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.cardDarkText,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
   mealName: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
-    flex: 1,
+    color: THEME.cardDarkText,
+    paddingRight: 8,
   },
   total: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F766E',
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.cardDarkText,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 4,
   },
   restaurant: {
-    fontSize: 15,
-    color: '#334155',
-    marginTop: 4,
+    fontSize: 14,
+    color: THEME.cardMutedText,
+    fontWeight: '600',
   },
   statusLine: {
-    fontSize: 14,
-    color: '#475569',
-    marginTop: 4,
+    fontSize: 13,
+    color: THEME.cardMutedText,
   },
   time: {
     fontSize: 12,
-    color: '#64748B',
-    marginTop: 6,
+    color: THEME.cardMutedText,
   },
   dirBtn: {
-    marginTop: 10,
-    backgroundColor: '#0F766E',
-    paddingVertical: 10,
-    borderRadius: 8,
+    marginTop: 12,
+    minHeight: 44,
+    borderRadius: 999,
+    backgroundColor: '#121812',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   dirBtnDisabled: {
     opacity: 0.6,
   },
   dirBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
     fontWeight: '700',
+    fontSize: 14,
   },
 });
