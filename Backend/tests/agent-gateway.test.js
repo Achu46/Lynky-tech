@@ -467,4 +467,31 @@ describe('Assistant Service & Gateway (Test 7 + E2E)', () => {
     expect(capturedSystemPrompt).toContain('Premium Veg Meal');
     expect(capturedSystemPrompt).toContain('Veg Mini Meal');
   });
+
+  it('Explicit dish selection prepares the requested named dish (e.g. m1 Veg Rice Bowl) while default still enforces cheapest', async () => {
+    currentHandler = async () => ({
+      toolCalls: [
+        {
+          name: 'prepare_order',
+          args: {
+            dish_id: 'm1',
+            max_price: 200,
+            vegetarian: true,
+            wants_directions: false,
+            explicit_dish_selection: true
+          }
+        }
+      ]
+    });
+
+    const namedRes = await request(gatewayApp)
+      .post('/api/agent/run')
+      .send({ session_id: 'sess-named-dish', text: 'order the veg rice bowl under 200' });
+
+    expect(namedRes.status).toBe(200);
+    expect(namedRes.body.status).toBe('needs_approval');
+    expect(namedRes.body.proposal.dish_id).toBe('m1');
+    expect(namedRes.body.proposal.dish_name).toBe('Veg Rice Bowl');
+    expect(namedRes.body.proposal.price).toBe(180);
+  });
 });

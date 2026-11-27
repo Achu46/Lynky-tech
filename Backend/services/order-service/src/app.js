@@ -22,7 +22,8 @@ const createProposalSchema = z.object({
   dish_id: z.string().min(1),
   max_price: z.number().min(0),
   vegetarian: z.boolean(),
-  wants_directions: z.boolean().optional().default(false)
+  wants_directions: z.boolean().optional().default(false),
+  explicit_dish_selection: z.boolean().optional().default(false)
 });
 
 const directionsResultSchema = z.object({
@@ -147,7 +148,7 @@ export function createOrderApp({
         `/dishes/search?max_price=${encodeURIComponent(body.max_price)}&vegetarian=${encodeURIComponent(body.vegetarian)}`
       );
       const validDishes = searchData.dishes || [];
-      if (validDishes.length === 0 || validDishes[0].id !== dish.id) {
+      if (!body.explicit_dish_selection && (validDishes.length === 0 || validDishes[0].id !== dish.id)) {
         throw new ConflictError(
           'NOT_CHEAPEST_OPTION',
           `Dish ${dish.id} is not the cheapest valid choice`,
