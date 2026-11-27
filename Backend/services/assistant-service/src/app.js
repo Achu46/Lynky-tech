@@ -27,10 +27,11 @@ const agentRunSchema = z
 export function createAssistantApp({
   pool = getPool(),
   logger = createLogger('assistant-service'),
-  llmClient = new GeminiLlmClient(),
+  llmClient,
   catalogUrl = () => process.env.CATALOG_URL || 'http://127.0.0.1:3001',
   orderUrl = () => process.env.ORDER_URL || 'http://127.0.0.1:3002'
 } = {}) {
+  const resolvedLlmClient = llmClient || new GeminiLlmClient({ catalogUrl });
   const app = express();
   app.use(express.json({ limit: '100kb' }));
 
@@ -99,7 +100,7 @@ export function createAssistantApp({
 
       const result = await runAgentLoop({
         pool,
-        llmClient,
+        llmClient: resolvedLlmClient,
         catalogUrl: getCatalogUrl(),
         orderUrl: getOrderUrl(),
         logger,

@@ -441,4 +441,30 @@ describe('Assistant Service & Gateway (Test 7 + E2E)', () => {
     expect(followUp.body.proposal.dish_name).toBe('Veg Lunch Box');
     expect(followUp.body.activity.length).toBeGreaterThanOrEqual(3);
   });
+
+  it('Full DB catalog snapshot is provided to LLM and include_unavailable lists all dishes', async () => {
+    const allDishesRes = await request(catalogServer.app || (await import('../services/catalog-service/src/app.js')).createCatalogApp({ pool: db.createPool() }))
+      .get('/dishes/search?include_unavailable=true')
+      .set('x-internal-key', internalKey);
+    expect(allDishesRes.status).toBe(200);
+    expect(allDishesRes.body.dishes).toHaveLength(6);
+
+    let capturedSystemPrompt = '';
+    currentHandler = async ({ systemPrompt }) => {
+      capturedSystemPrompt = systemPrompt;
+      return {
+        text: 'Available dishes under Rs 300: Veg Lunch Box (Rs 160), Veg Rice Bowl (Rs 180), Chicken Rice Bowl (Rs 190), Paneer Wrap (Rs 220), Premium Veg Meal (Rs 280).'
+      };
+    };
+
+    const res = await request(gatewayApp)
+      .post('/api/agent/run')
+      .send({ session_id: 'sess-full-db', text: 'show me dishes below 300 rupees' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('done');
+    expect(capturedSystemPrompt).toContain('<UNTRUSTED_MENU_DATA>');
+    expect(capturedSystemPrompt).toContain('Premium Veg Meal');
+    expect(capturedSystemPrompt).toContain('Veg Mini Meal');
+  });
 });

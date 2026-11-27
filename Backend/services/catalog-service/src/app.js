@@ -12,17 +12,20 @@ import {
 } from '@pocket-operator/shared';
 import { seedCatalog } from '../../../database/seed.js';
 
+const parseOptionalBoolean = (v) => {
+  if (v === undefined || v === '') return undefined;
+  if (v === 'true' || v === true) return true;
+  if (v === 'false' || v === false) return false;
+  return v;
+};
+
 const searchQuerySchema = z.object({
   max_price: z.preprocess(
     (v) => (v === undefined || v === '' ? undefined : Number(v)),
     z.number().min(0).optional()
   ),
-  vegetarian: z.preprocess((v) => {
-    if (v === undefined || v === '') return undefined;
-    if (v === 'true' || v === true) return true;
-    if (v === 'false' || v === false) return false;
-    return v;
-  }, z.boolean().optional())
+  vegetarian: z.preprocess(parseOptionalBoolean, z.boolean().optional()),
+  include_unavailable: z.preprocess(parseOptionalBoolean, z.boolean().optional())
 });
 
 const patchDishSchema = z
@@ -85,7 +88,10 @@ export function createCatalogApp({ pool = getPool(), logger = createLogger('cata
     asyncHandler(async (req, res) => {
       const query = parseWithSchema(searchQuerySchema, req.query, 'search query');
 
-      const conditions = ['d.is_available = true'];
+      const conditions = [];
+      if (!query.include_unavailable) {
+        conditions.push('d.is_available = true');
+      }
       const params = [];
 
       if (query.max_price !== undefined) {
@@ -101,11 +107,12 @@ export function createCatalogApp({ pool = getPool(), logger = createLogger('cata
         conditions.push(`d.is_vegetarian = $${params.length}`);
       }
 
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       const sql = `
         SELECT d.*, r.name AS restaurant_name, r.latitude, r.longitude
         FROM dishes d
         JOIN restaurants r ON r.id = d.restaurant_id
-        WHERE ${conditions.join(' AND ')}
+        ${whereClause}
         ORDER BY d.price ASC, d.id ASC
       `;
 
