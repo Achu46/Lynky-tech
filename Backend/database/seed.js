@@ -10,11 +10,13 @@ export const DEFAULT_CATALOG_PATH = path.join(__dirname, 'seed', 'catalog.json')
 export async function seedCatalog(pool = getPool(), catalogPath = DEFAULT_CATALOG_PATH) {
   const raw = await fs.readFile(catalogPath, 'utf8');
   const data = JSON.parse(raw);
+  const items = data.items || data.dishes || [];
+  const restaurants = data.restaurants || [];
 
   await withTransaction(pool, async (client) => {
     await client.query('TRUNCATE TABLE dishes, restaurants');
 
-    for (const r of data.restaurants) {
+    for (const r of restaurants) {
       await client.query(
         `INSERT INTO restaurants (id, name, latitude, longitude)
          VALUES ($1, $2, $3, $4)`,
@@ -22,7 +24,9 @@ export async function seedCatalog(pool = getPool(), catalogPath = DEFAULT_CATALO
       );
     }
 
-    for (const d of data.dishes) {
+    for (const d of items) {
+      const isVegetarian = d.vegetarian !== undefined ? d.vegetarian : d.is_vegetarian;
+      const isAvailable = d.available !== undefined ? d.available : d.is_available;
       await client.query(
         `INSERT INTO dishes (id, restaurant_id, name, is_vegetarian, price, is_available, description)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -30,9 +34,9 @@ export async function seedCatalog(pool = getPool(), catalogPath = DEFAULT_CATALO
           d.id,
           d.restaurant_id,
           d.name,
-          Boolean(d.is_vegetarian),
+          Boolean(isVegetarian),
           d.price,
-          d.is_available !== false,
+          isAvailable !== false,
           d.description ?? ''
         ]
       );
@@ -40,8 +44,8 @@ export async function seedCatalog(pool = getPool(), catalogPath = DEFAULT_CATALO
   });
 
   return {
-    restaurants: data.restaurants.length,
-    dishes: data.dishes.length
+    restaurants: restaurants.length,
+    dishes: items.length
   };
 }
 

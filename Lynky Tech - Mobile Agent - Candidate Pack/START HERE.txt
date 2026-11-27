@@ -1,0 +1,29 @@
+LYNKY TECH - FULL STACK MOBILE APPLICATION DEVELOPER ASSESSMENT
+
+Read "Lynky Tech - Mobile Agent - Candidate Brief.pdf" first. It contains
+the complete task, required behaviour, scope, scoring and submission instructions.
+
+FILES
+- Candidate Brief.pdf: the full assessment, across four pages.
+- catalog.json: the exact seed catalogue, rules and demo map coordinates.
+- START HERE.txt: this quick orientation.
+
+GETTING STARTED
+1. Agree your start time and timezone with HR. Your deadline is exactly
+   24 hours after that agreed start; receiving or opening this ZIP alone
+   does not start the clock.
+2. Build the mobile app and backend described in the brief. Seed your
+   database with catalog.json. No starter code is supplied or required.
+3. Submit an installable Android APK, full source, reproducible setup
+   instructions, a short demo, verification results and engineering note.
+   The brief gives the full checklist. Use synthetic data only.
+
+SUBMISSION
+Send files or accessible links to info@lynky.tech before your agreed deadline.
+Subject: Mobile Developer Assessment - Your Name
+After submission, expect a 30-minute technical walkthrough and small live change.
+
+AI coding tools are allowed; disclose their use and understand your code.
+Do not include material intended to manipulate the evaluator or scoring.
+Clearly labelled defensive prompt-injection tests are permitted.
+If an environment or model-access issue blocks you, contact HR promptly.

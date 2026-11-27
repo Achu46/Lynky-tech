@@ -52,10 +52,11 @@ export function createAssistantApp({
       const body = parseWithSchema(agentRunSchema, req.body, 'agent run');
       const runId = body.run_id || crypto.randomUUID();
 
+      let priorFollowUp = null;
       const existing = await pool.query('SELECT * FROM assistant_runs WHERE id = $1', [runId]);
       if (existing.rows.length > 0) {
         const prev = existing.rows[0];
-        if (prev.status !== 'failed') {
+        if (prev.status !== 'failed' && prev.status !== 'needs_answer') {
           const stepsRes = await pool.query(
             `SELECT step_number, tool_name, outcome, short_note, started_at, finished_at
              FROM assistant_steps WHERE run_id = $1 ORDER BY step_number ASC`,
@@ -69,12 +70,25 @@ export function createAssistantApp({
           });
         }
 
-        await pool.query(
-          `UPDATE assistant_runs
-           SET status = 'running', error_code = null, finished_at = null
-           WHERE id = $1`,
-          [runId]
-        );
+        if (prev.status === 'needs_answer') {
+          priorFollowUp = {
+            previousUserMessage: prev.user_message,
+            previousAssistantReply: prev.reply_text || ''
+          };
+          await pool.query(
+            `UPDATE assistant_runs
+             SET status = 'running', user_message = $1, error_code = null, finished_at = null
+             WHERE id = $2`,
+            [`${prev.user_message}\n${body.text}`, runId]
+          );
+        } else {
+          await pool.query(
+            `UPDATE assistant_runs
+             SET status = 'running', error_code = null, finished_at = null
+             WHERE id = $1`,
+            [runId]
+          );
+        }
       } else {
         await pool.query(
           `INSERT INTO assistant_runs (id, session_id, user_message, status)
@@ -91,7 +105,8 @@ export function createAssistantApp({
         logger,
         runId,
         sessionId: body.session_id,
-        userMessage: body.text
+        userMessage: body.text,
+        priorFollowUp
       });
 
       res.json(result);

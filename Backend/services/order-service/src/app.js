@@ -35,6 +35,8 @@ function formatProposal(row) {
     run_id: row.run_id,
     dish_id: row.dish_id,
     restaurant_id: row.restaurant_id,
+    dish_name: row.dish_name ?? null,
+    restaurant_name: row.restaurant_name ?? null,
     quantity: Number(row.quantity),
     price: Number(row.price),
     max_price: Number(row.max_price),
@@ -143,13 +145,15 @@ export function createOrderApp({
       try {
         const { rows } = await pool.query(
           `INSERT INTO order_proposals
-             (run_id, dish_id, restaurant_id, quantity, price, max_price, vegetarian, wants_directions, status)
-           VALUES ($1, $2, $3, 1, $4, $5, $6, $7, 'pending')
+             (run_id, dish_id, restaurant_id, dish_name, restaurant_name, quantity, price, max_price, vegetarian, wants_directions, status)
+           VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8, $9, 'pending')
            RETURNING *`,
           [
             body.run_id,
             dish.id,
             dish.restaurant_id,
+            dish.name,
+            dish.restaurant_name,
             dish.price,
             body.max_price,
             body.vegetarian,
@@ -285,13 +289,15 @@ export function createOrderApp({
           if (nextDish) {
             const ins = await client.query(
               `INSERT INTO order_proposals
-                 (run_id, dish_id, restaurant_id, quantity, price, max_price, vegetarian, wants_directions, status, replaces_proposal_id)
-               VALUES ($1, $2, $3, 1, $4, $5, $6, $7, 'pending', $8)
+                 (run_id, dish_id, restaurant_id, dish_name, restaurant_name, quantity, price, max_price, vegetarian, wants_directions, status, replaces_proposal_id)
+               VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8, $9, 'pending', $10)
                RETURNING *`,
               [
                 proposal.run_id,
                 nextDish.id,
                 nextDish.restaurant_id,
+                nextDish.name,
+                nextDish.restaurant_name,
                 nextDish.price,
                 proposal.max_price,
                 proposal.vegetarian,

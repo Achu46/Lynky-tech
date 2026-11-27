@@ -33,12 +33,12 @@ describe('Catalog & Order Service (Tests 1-6)', () => {
 
   // Test 6: Selection logic
   it('6. Selection logic: inclusive budget, tie by id, unavailable skipped, veg filter, nothing matches', async () => {
-    // Vegetarian <= 200: m3 (140, unavailable) skipped; m4 (160) wins over m1 (180), m5 (180), m8 (200)
+    // Vegetarian <= 200: m3 (120, unavailable) skipped; m4 (160) wins over m1 (180)
     const vegRes = await request(catalogApp)
       .get('/dishes/search?max_price=200&vegetarian=true')
       .set('x-internal-key', internalKey);
     expect(vegRes.status).toBe(200);
-    expect(vegRes.body.dishes.map((d) => d.id)).toEqual(['m4', 'm1', 'm5', 'm8']);
+    expect(vegRes.body.dishes.map((d) => d.id)).toEqual(['m4', 'm1']);
     expect(vegRes.body.dishes[0].price).toBe(160);
 
     // Inclusive budget: exact price 160 includes m4
@@ -48,25 +48,29 @@ describe('Catalog & Order Service (Tests 1-6)', () => {
     expect(exactRes.status).toBe(200);
     expect(exactRes.body.dishes.map((d) => d.id)).toEqual(['m4']);
 
-    // Make m4 unavailable -> tie at 180 between m1 and m5 -> lowest id m1 wins
+    // Make m4 unavailable and tie m2 at 180 -> tie between m1 and m2 -> lowest id m1 wins
     await request(catalogApp)
       .patch('/dishes/m4')
       .set('x-internal-key', internalKey)
       .send({ available: false });
+    await request(catalogApp)
+      .patch('/dishes/m2')
+      .set('x-internal-key', internalKey)
+      .send({ price: 180 });
 
     const tieRes = await request(catalogApp)
       .get('/dishes/search?max_price=200&vegetarian=true')
       .set('x-internal-key', internalKey);
     expect(tieRes.status).toBe(200);
     expect(tieRes.body.dishes[0].id).toBe('m1');
-    expect(tieRes.body.dishes[1].id).toBe('m5');
+    expect(tieRes.body.dishes[1].id).toBe('m2');
 
-    // Non-veg filter: m6 (150), m2 (170)
+    // Non-veg filter: m5 Chicken Rice Bowl (190)
     const nonVegRes = await request(catalogApp)
       .get('/dishes/search?max_price=200&vegetarian=false')
       .set('x-internal-key', internalKey);
     expect(nonVegRes.status).toBe(200);
-    expect(nonVegRes.body.dishes.map((d) => d.id)).toEqual(['m6', 'm2']);
+    expect(nonVegRes.body.dishes.map((d) => d.id)).toEqual(['m5']);
 
     // Nothing matches
     const emptyRes = await request(catalogApp)
@@ -156,15 +160,7 @@ describe('Catalog & Order Service (Tests 1-6)', () => {
     expect(confirm1.body.new_proposal.price).toBe(180);
     expect(confirm1.body.new_proposal.replaces_proposal_id).toBe(propRes.body.id);
 
-    // Price change on m1 above budget (250 > 200) with remaining veg dishes also unavailable/over-budget -> new_proposal null
-    await request(catalogApp)
-      .patch('/dishes/m5')
-      .set('x-internal-key', internalKey)
-      .send({ available: false });
-    await request(catalogApp)
-      .patch('/dishes/m8')
-      .set('x-internal-key', internalKey)
-      .send({ available: false });
+    // Price change on m1 above budget (250 > 200); m2 (220) and m6 (280) are already > 200 -> new_proposal null
     await request(catalogApp)
       .patch('/dishes/m1')
       .set('x-internal-key', internalKey)

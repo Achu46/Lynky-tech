@@ -151,6 +151,8 @@ describe('Assistant Service & Gateway (Test 7 + E2E)', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('needs_approval');
     expect(res.body.proposal.dish_id).toBe('m4');
+    expect(res.body.proposal.dish_name).toBe('Veg Lunch Box');
+    expect(res.body.proposal.restaurant_name).toBe('Lunch Box (fictional)');
     expect(res.body.proposal.price).toBe(160);
 
     // Ensure tool output fed back to model was wrapped in untrusted data tags
@@ -392,7 +394,51 @@ describe('Assistant Service & Gateway (Test 7 + E2E)', () => {
     expect(dirRes.body.device_action).toMatchObject({
       type: 'open_maps',
       order_id: confirmed.body.order.id,
-      label: 'Green Leaf Kitchen'
+      label: 'Lunch Box (fictional)'
     });
+  });
+
+  it('Follow-up answer with the same run_id continues a needs_answer run cleanly', async () => {
+    const runId = crypto.randomUUID();
+    currentHandler = async () => ({
+      toolCalls: [{ name: 'ask_user', args: { question: 'What is your maximum budget in INR?' } }]
+    });
+
+    const first = await request(gatewayApp)
+      .post('/api/agent/run')
+      .send({ session_id: 'sess-followup', text: 'Cheapest vegetarian lunch', run_id: runId });
+    expect(first.status).toBe(200);
+    expect(first.body.status).toBe('needs_answer');
+    expect(first.body.run_id).toBe(runId);
+
+    let turn = 0;
+    currentHandler = async () => {
+      turn += 1;
+      if (turn === 1) {
+        return { toolCalls: [{ name: 'search_menu', args: { max_price: 200, vegetarian: true } }] };
+      }
+      if (turn === 2) {
+        return {
+          toolCalls: [
+            {
+              name: 'prepare_order',
+              args: { dish_id: 'm4', max_price: 200, vegetarian: true, wants_directions: false }
+            }
+          ]
+        };
+      }
+      return { text: 'Prepared Veg Lunch Box at Lunch Box (fictional) for Rs 160.' };
+    };
+
+    const followUp = await request(gatewayApp)
+      .post('/api/agent/run')
+      .send({ session_id: 'sess-followup', text: '200 rupees', run_id: runId });
+
+    expect(followUp.status).toBe(200);
+    expect(followUp.body.run_id).toBe(runId);
+    expect(followUp.body.status).toBe('needs_approval');
+    expect(followUp.body.proposal.dish_id).toBe('m4');
+    expect(followUp.body.proposal.dish_name).toBe('Veg Lunch Box');
+    expect(followUp.body.activity.length).toBeGreaterThanOrEqual(3);
   });
 });

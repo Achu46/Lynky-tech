@@ -1,96 +1,82 @@
 {
+  "schema_version": 1,
+  "currency": "INR",
+  "rules": {
+    "fulfilment": "sandbox_pickup",
+    "tax_and_fees": 0,
+    "quantity_per_order": 1,
+    "budget_inclusive": true,
+    "selection": "cheapest matching available item; break ties by item id"
+  },
   "restaurants": [
     {
       "id": "r1",
-      "name": "Green Leaf Kitchen",
-      "latitude": 12.9716,
-      "longitude": 77.5946
+      "name": "Green Bowl (fictional)",
+      "latitude": 11.01,
+      "longitude": 76.95
     },
     {
       "id": "r2",
-      "name": "Spice Route Bistro",
-      "latitude": 12.9784,
-      "longitude": 77.6408
-    },
-    {
-      "id": "r3",
-      "name": "Metro Tandoor",
-      "latitude": 12.9352,
-      "longitude": 77.6245
+      "name": "Lunch Box (fictional)",
+      "latitude": 11.02,
+      "longitude": 76.96
     }
   ],
-  "dishes": [
+  "items": [
     {
       "id": "m1",
       "restaurant_id": "r1",
-      "name": "Paneer Rice Bowl",
-      "is_vegetarian": true,
+      "name": "Veg Rice Bowl",
+      "vegetarian": true,
       "price": 180,
-      "is_available": true,
-      "description": "Grilled paneer over jeera rice with mint chutney."
+      "available": true,
+      "description": "Rice and vegetables."
     },
     {
       "id": "m2",
-      "restaurant_id": "r2",
-      "name": "Chicken Biryani Box",
-      "is_vegetarian": false,
-      "price": 170,
-      "is_available": true,
-      "description": "Aromatic spiced chicken biryani with raita."
+      "restaurant_id": "r1",
+      "name": "Paneer Wrap",
+      "vegetarian": true,
+      "price": 220,
+      "available": true,
+      "description": "Paneer and vegetables in a wrap."
     },
     {
       "id": "m3",
-      "restaurant_id": "r3",
-      "name": "Masala Dosa Combo",
-      "is_vegetarian": true,
-      "price": 140,
-      "is_available": false,
-      "description": "Crispy masala dosa with sambar and coconut chutney."
+      "restaurant_id": "r1",
+      "name": "Veg Mini Meal",
+      "vegetarian": true,
+      "price": 120,
+      "available": false,
+      "description": "A small vegetarian meal."
     },
     {
       "id": "m4",
-      "restaurant_id": "r1",
+      "restaurant_id": "r2",
       "name": "Veg Lunch Box",
-      "is_vegetarian": true,
+      "vegetarian": true,
       "price": 160,
-      "is_available": true,
-      "description": "Homestyle dal, sabzi, 2 rotis, and steamed rice."
+      "available": true,
+      "description": "Vegetarian lunch."
     },
     {
       "id": "m5",
       "restaurant_id": "r2",
-      "name": "Chole Bhature Plate",
-      "is_vegetarian": true,
-      "price": 180,
-      "is_available": true,
-      "description": "Spiced chickpea curry with fluffy bhature."
+      "name": "Chicken Rice Bowl",
+      "vegetarian": false,
+      "price": 190,
+      "available": true,
+      "description": "Chicken with rice."
     },
     {
       "id": "m6",
-      "restaurant_id": "r3",
-      "name": "Egg Curry Meal",
-      "is_vegetarian": false,
-      "price": 150,
-      "is_available": true,
-      "description": "Two boiled eggs in rich onion-tomato gravy with rice."
-    },
-    {
-      "id": "m7",
       "restaurant_id": "r2",
-      "name": "Butter Chicken Thali",
-      "is_vegetarian": false,
-      "price": 250,
-      "is_available": true,
-      "description": "Creamy butter chicken with naan and pulao."
-    },
-    {
-      "id": "m8",
-      "restaurant_id": "r1",
-      "name": "Rajma Chawal Bowl",
-      "is_vegetarian": true,
-      "price": 200,
-      "is_available": true,
-      "description": "Slow-cooked kidney beans curry over basmati rice."
+      "name": "Premium Veg Meal",
+      "vegetarian": true,
+      "price": 280,
+      "available": true,
+      "description": "A larger vegetarian meal."
     }
-  ]
+  ],
+  "note": "All businesses, menu items and pickup orders are fictional. Coordinates are demo map destinations only; do not contact or transact with any real business."
 }

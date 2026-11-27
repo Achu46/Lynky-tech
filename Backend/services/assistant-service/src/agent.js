@@ -123,7 +123,8 @@ export async function runAgentLoop({
   logger,
   runId,
   sessionId,
-  userMessage
+  userMessage,
+  priorFollowUp = null
 }) {
   const runStart = Date.now();
   const priorRuns = await pool.query(
@@ -137,8 +138,11 @@ export async function runAgentLoop({
 
   const combinedUserText = [
     ...priorRuns.rows.map((r) => r.user_message),
+    priorFollowUp?.previousUserMessage || '',
     userMessage
-  ].join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const messages = [];
   for (const prev of priorRuns.rows) {
@@ -147,10 +151,21 @@ export async function runAgentLoop({
       messages.push({ role: 'assistant', content: prev.reply_text });
     }
   }
+  if (priorFollowUp) {
+    messages.push({ role: 'user', content: priorFollowUp.previousUserMessage });
+    if (priorFollowUp.previousAssistantReply) {
+      messages.push({ role: 'assistant', content: priorFollowUp.previousAssistantReply });
+    }
+  }
   messages.push({ role: 'user', content: userMessage });
 
-  const activity = [];
-  let stepNumber = 0;
+  const existingStepsRes = await pool.query(
+    `SELECT step_number, tool_name, outcome, short_note, started_at, finished_at
+     FROM assistant_steps WHERE run_id = $1 ORDER BY step_number ASC`,
+    [runId]
+  );
+  const activity = [...existingStepsRes.rows];
+  let stepNumber = activity.reduce((max, s) => Math.max(max, Number(s.step_number) || 0), 0);
   let createdProposal = null;
   let pendingDeviceAction = null;
 
